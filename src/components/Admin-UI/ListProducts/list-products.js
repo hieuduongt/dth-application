@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../../../layouts/AdminLayout";
-import { Avatar, Table, Modal, Button, Form, Input, InputNumber, Upload, Select } from 'antd';
-import { DeleteOutlined, EditOutlined, ExclamationCircleFilled, FileAddOutlined, PlusOutlined } from '@ant-design/icons';
+import { Avatar, Table, Modal, Button, Form, Input, InputNumber, Upload, Select, message } from 'antd';
+import { DeleteOutlined, EditOutlined, ExclamationCircleFilled, FileAddOutlined, InboxOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import ProductServices from '../../../apis/productServices';
 const { confirm } = Modal;
 const { Option } = Select;
-
-const props = {
-    action: 'https://www.mocky.io/v2/5cc8019d300000980a055e76',
-    onChange({ file, fileList }) {
-        if (file.status !== 'uploading') {
-            console.log(file, fileList);
-        }
-    }
-};
+const { Dragger } = Upload;
 
 const ListProducts = () => {
     const [products, setProducts] = useState([]);
     const [loadings, setLoadings] = useState([]);
     const [imageChoosing, setImageChoosing] = useState("link");
+
+    const [imageFiles, setImageFiles] = useState([]);
     const [open, setOpen] = useState(false);
     const getAlProducts = async () => {
         const res = await ProductServices.getAllProducts();
@@ -69,7 +63,7 @@ const ListProducts = () => {
 
     const columns = [
         {
-            render: (text, record, index) => (<Avatar src={record.imageURL} />),
+            render: (text, record, index) => (<Avatar src={record.imageURLs.find(i => i.isMainImage).url} />),
             title: 'Image',
             dataIndex: 'imageURL',
             width: 150,
@@ -136,44 +130,25 @@ const ListProducts = () => {
         getAlProducts();
     }, []);
 
-    const uploadButton = (
-        <div>
-            <PlusOutlined />
-            <div
-                style={{
-                    marginTop: 8,
-                }}
-            >
-                Upload
-            </div>
-        </div>
-    );
-
-    const getBase64 = (file) =>
-        new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = (error) => reject(error);
-        });
-
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewImage, setPreviewImage] = useState('');
-    const [previewTitle, setPreviewTitle] = useState('');
-    const [fileList, setFileList] = useState([]);
-
-    const handleCancel = () => setPreviewOpen(false);
-
-    const handlePreview = async (file) => {
-        if (!file.url && !file.preview) {
-            file.preview = await getBase64(file.originFileObj);
-        }
-        setPreviewImage(file.url || file.preview);
-        setPreviewOpen(true);
-        setPreviewTitle(file.name || file.url.substring(file.url.lastIndexOf('/') + 1));
+    const props = {
+        name: 'file',
+        multiple: true,
+        action: 'https://localhost:7023/api/file/upload',
+        onChange(info) {
+            const { status } = info.file;
+            if (status === 'done') {
+                message.success(`${info.file.name} file uploaded successfully.`);
+                const { fileList } = info;
+                setImageFiles(fileList);
+            } else if (status === 'error') {
+                message.error(`${info.file.name} file upload failed.`);
+            }
+        },
+        onDrop(e) {
+            message.info('Dropped files');
+        },
+        accept: "image/png, image/jpeg, image/jpg, image/webp"
     };
-
-    const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
 
     return (
         <MainLayout>
@@ -209,38 +184,92 @@ const ListProducts = () => {
                     <Form.Item name={['productName']} label="Name" rules={[{ required: true }]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name={['imageURL']} label="Image">
-                        <Select defaultValue="link" style={{ marginBottom: 10, marginRight: 10 }} onChange={(value) => setImageChoosing(value)}>
+                    <Form.Item name={['selectImageURLType']} label="Select Image Data Type">
+                        <Select defaultValue="link" onChange={(value) => setImageChoosing(value)}>
                             <Option value="link">Image URLs</Option>
                             <Option value="upload">Upload</Option>
                         </Select>
+                    </Form.Item>
+                    <Form.Item name={['imageURL']} label="Image" >
                         {imageChoosing === "link" ?
-                            <Input /> :
-                            <>
-                                <Upload
-                                    action="https://www.mocky.io/v2/5cc8019d300000980a055e76"
-                                    listType="picture-card"
-                                    fileList={fileList}
-                                    onPreview={handlePreview}
-                                    onChange={handleChange}
-                                    accept="image/png, image/jpeg, image/jpg, image/avif, image/webp"
-                                >
-                                    {fileList.length >= 8 ? null : uploadButton}
-                                </Upload>
-                                <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
-                                    <img
-                                        alt="example"
-                                        style={{
-                                            width: '100%',
-                                        }}
-                                        src={previewImage}
-                                    />
-                                </Modal>
-                            </>
+                            // <Input.TextArea size="large" placeholder="Please type your image URLs, a semicolon will separate each image URL!"/>
+                            <Form.List
+                                name="names"
+                                rules={[
+                                    {
+                                        validator: async (_, names) => {
+                                            if (!names || names.length < 1) {
+                                                return Promise.reject(new Error('At least 1 image'));
+                                            }
+                                        },
+                                    },
+                                ]}
+                            >
+                                {(fields, { add, remove }, { errors }) => (
+                                    <>
+                                        {fields.map((field, index) => (
+                                            <Form.Item
+                                                required={false}
+                                                key={field.key}
+                                            >
+                                                <Form.Item
+                                                    {...field}
+                                                    validateTrigger={['onChange', 'onBlur']}
+                                                    rules={[
+                                                        {
+                                                            required: true,
+                                                            whitespace: true,
+                                                            message: "Please input image URL name or delete this field.",
+                                                        },
+                                                    ]}
+                                                    noStyle
+                                                >
+                                                    <Input
+                                                        placeholder="image url"
+                                                        style={{
+                                                            width: '95%',
+                                                            marginRight: 10
+                                                        }}
+                                                    />
+                                                </Form.Item>
+                                                {fields.length > 1 ? (
+                                                    <MinusCircleOutlined
+                                                        className="dynamic-delete-button"
+                                                        onClick={() => remove(field.name)}
+                                                    />
+                                                ) : null}
+                                            </Form.Item>
+                                        ))}
+                                        <Form.Item>
+                                            <Button
+                                                type="dashed"
+                                                onClick={() => add()}
+                                                style={{
+                                                    width: '100%',
+                                                }}
+                                                icon={<PlusOutlined />}
+                                            >
+                                                Add Image
+                                            </Button>
+                                            
+                                            <Form.ErrorList errors={errors} />
+                                        </Form.Item>
+                                    </>
+                                )}
+                            </Form.List> :
+                            <Dragger {...props}>
+                                <p className="ant-upload-drag-icon">
+                                    <InboxOutlined />
+                                </p>
+                                <p className="ant-upload-text">Click or drag file to this area to upload</p>
+                                <p className="ant-upload-hint">
+                                    Only support for the extensions: png, jpg, jpeg, webp!
+                                </p>
+                            </Dragger>
                         }
                     </Form.Item>
                     <Form.Item name={['price']} label="Price" rules={[{ type: 'number', min: 0, max: 9999999999 }]}>
-                        <InputNumber />
+                        <InputNumber style={{width: "100%"}}/>
                     </Form.Item>
                     <Form.Item name={['categoryId']} label="Category">
                         <Input />

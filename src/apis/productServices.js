@@ -25,6 +25,10 @@ const ProductServices = {
     getAllProductsByCategory: (id) => {
         const url = `${PATH.BASEURL}/product/getallbycategory`
         return ApiCreator.get(url, id);
+    },
+    uploadFile: (data) => {
+        const url = `${PATH.BASEURL}/file/upload`
+        return ApiCreator.post(url, data);
     }
 };
 export default ProductServices;

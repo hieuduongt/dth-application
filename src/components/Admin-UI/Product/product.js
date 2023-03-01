@@ -55,7 +55,7 @@ const Product = () => {
                 <Form.Item
                     name="id"
                     hidden={true}
-                    initialValue={category ? category.id : ""}
+                    initialValue={product ? product.id : ""}
                 >
                     <Input/>
                 </Form.Item>
@@ -83,7 +83,7 @@ const Product = () => {
                             message: 'Please input your category Url!',
                         },
                     ]}
-                    initialValue = {category ? category.url : ""}
+                    initialValue = {product ? product.description : ""}
                 >
                     <Input />
                 </Form.Item>
