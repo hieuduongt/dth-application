@@ -3,18 +3,29 @@ import MainLayout from "../../../layouts/AdminLayout";
 import { Avatar, Table, Modal, Button, Form, Input, InputNumber, Upload, Select, message } from 'antd';
 import { DeleteOutlined, EditOutlined, ExclamationCircleFilled, FileAddOutlined, InboxOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import ProductServices from '../../../apis/productServices';
+import CategoryServices from '../../../apis/categoryServices';
 const { confirm } = Modal;
 const { Option } = Select;
 const { Dragger } = Upload;
 
 const ListProducts = () => {
     const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [createButton, setDisableCreateButton] = useState(true);
+    const [product, setProduct] = useState({
+        productName: "",
+        price: 0,
+        imageURLs: [],
+        description: "",
+        categoryId: ""
+    });
     const [loadings, setLoadings] = useState([]);
-    const [imageChoosing, setImageChoosing] = useState("link");
+    const [imageChoosing, setImageChoosing] = useState("upload");
 
-    const [imageFiles, setImageFiles] = useState([]);
+    const [imageURLs, setImageURLs] = useState([]);
     const [open, setOpen] = useState(false);
-    const getAlProducts = async () => {
+
+    const getAllProducts = async () => {
         const res = await ProductServices.getAllProducts();
         if (res.status === 200) {
             if (res.data.results.length) {
@@ -23,10 +34,22 @@ const ListProducts = () => {
         }
     }
 
-    const handleCreateNew = async (data) => {
-        const res = await ProductServices.createProduct(data);
+    const getAllCategories = async () => {
+        const res = await CategoryServices.getAllCategories();
         if (res.status === 200) {
-            await getAlProducts()
+            if (res.data.results.length) {
+                setCategories(res.data.results);
+                setProduct({...product, categoryId: res.data.results[0].id});
+            }
+        }
+    }
+
+    const handleCreateNew = async () => {
+        
+        console.log(product);
+        const res = await ProductServices.createProduct(product);
+        if (res.status === 200) {
+            await getAllProducts()
         }
         setOpen(false);
     }
@@ -102,7 +125,6 @@ const ListProducts = () => {
                     icon={<DeleteOutlined />}
                     onClick={() => showDeleteConfirm(index)}
                     loading={loadings[index]}
-                // loading={loadings[2]}
                 // onClick={() => enterLoading(2)}
                 />
             </>),
@@ -113,8 +135,7 @@ const ListProducts = () => {
     const validateMessages = {
         required: '${label} is required!',
         types: {
-            email: '${label} is not a valid email!',
-            number: '${label} is not a valid number!',
+            name: '${label} is not a valid email!',
         },
         number: {
             range: '${label} must be between ${min} and ${max}',
@@ -127,7 +148,8 @@ const ListProducts = () => {
     };
 
     useEffect(() => {
-        getAlProducts();
+        getAllProducts();
+        getAllCategories();
     }, []);
 
     const props = {
@@ -139,9 +161,14 @@ const ListProducts = () => {
             if (status === 'done') {
                 message.success(`${info.file.name} file uploaded successfully.`);
                 const { fileList } = info;
-                setImageFiles(fileList);
+                const fileResponse = fileList.map(file => file.response?.result);
+                setProduct({ ...product, imageURLs: fileResponse});
             } else if (status === 'error') {
                 message.error(`${info.file.name} file upload failed.`);
+            } else if (status === 'removed') {
+                const { fileList } = info;
+                const fileResponse = fileList.map(file => file.response?.result);
+                setProduct({ ...product, imageURLs: fileResponse});
             }
         },
         onDrop(e) {
@@ -149,6 +176,54 @@ const ListProducts = () => {
         },
         accept: "image/png, image/jpeg, image/jpg, image/webp"
     };
+
+    const handleInputChange = (event, name) => {
+        if (event || event.target.value) {
+            if (name.includes("price")) {
+                setProduct({ ...product, [name]: event });
+            } else {
+                setProduct({ ...product, [name]: event.target.value });
+            }
+
+            if (product.productName && product.price) {
+                setDisableCreateButton(false);
+            }
+        }
+    }
+
+    const handleImageURLsInputChange = (event, key) => {
+        if (event.target.value) {
+            const image = {
+                isMainImage: key === 0 ? true : false,
+                url: event.target.value,
+            }
+            if (imageURLs[key]) {
+                let images = [...imageURLs]
+                images[key] = image;
+                setImageURLs(images);
+                setProduct({ ...product, imageURLs: images});
+            } else {
+                setImageURLs(imageURLs => [...imageURLs, image]);
+                setProduct({ ...product, imageURLs: imageURLs});
+            }
+
+            if (product.productName && product.price) {
+                setDisableCreateButton(false);
+            }
+        }
+    }
+
+    const handleRemoveImageURLsInput = (key) => {
+        let images = [...imageURLs];
+        images.splice(key, 1);
+        setImageURLs(images);
+        setProduct({ ...product, imageURLs: images});
+        if (product.categoryId && product.productName && product.price) {
+            setDisableCreateButton(false);
+        }
+    }
+
+    console.log(product);
 
     return (
         <MainLayout>
@@ -170,41 +245,31 @@ const ListProducts = () => {
                 title="Create a new product"
                 centered
                 open={open}
-                onOk={() => setOpen(false)}
+                onOk={() => handleCreateNew()}
                 onCancel={() => setOpen(false)}
                 width={1000}
+                okButtonProps={{ disabled: createButton }}
             >
                 <Form
                     {...layout}
                     name="nest-messages"
                     // onFinish={onFinish}
+                    onError={() => setDisableCreateButton(true)}
                     style={{ maxWidth: 1000 }}
                     validateMessages={validateMessages}
                 >
                     <Form.Item name={['productName']} label="Name" rules={[{ required: true }]}>
-                        <Input />
+                        <Input onChange={(event) => handleInputChange(event, "productName")} />
                     </Form.Item>
                     <Form.Item name={['selectImageURLType']} label="Select Image Data Type">
-                        <Select defaultValue="link" onChange={(value) => setImageChoosing(value)}>
+                        <Select defaultValue="upload" onChange={(value) => setImageChoosing(value)}>
                             <Option value="link">Image URLs</Option>
                             <Option value="upload">Upload</Option>
                         </Select>
                     </Form.Item>
                     <Form.Item name={['imageURL']} label="Image" >
                         {imageChoosing === "link" ?
-                            // <Input.TextArea size="large" placeholder="Please type your image URLs, a semicolon will separate each image URL!"/>
-                            <Form.List
-                                name="names"
-                                rules={[
-                                    {
-                                        validator: async (_, names) => {
-                                            if (!names || names.length < 1) {
-                                                return Promise.reject(new Error('At least 1 image'));
-                                            }
-                                        },
-                                    },
-                                ]}
-                            >
+                            <Form.List name="names" key={"list-image-urls"}>
                                 {(fields, { add, remove }, { errors }) => (
                                     <>
                                         {fields.map((field, index) => (
@@ -218,9 +283,14 @@ const ListProducts = () => {
                                                     rules={[
                                                         {
                                                             required: true,
-                                                            whitespace: true,
-                                                            message: "Please input image URL name or delete this field.",
+                                                            whitespace: false,
+                                                            message: "Please input image URL or delete this field.",
                                                         },
+                                                        {
+                                                            required: true,
+                                                            pattern: /^(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&=]*)/igm,
+                                                            message: "Please input valid image URL or delete this field.",
+                                                        }
                                                     ]}
                                                     noStyle
                                                 >
@@ -230,14 +300,14 @@ const ListProducts = () => {
                                                             width: '95%',
                                                             marginRight: 10
                                                         }}
+                                                        onChange={(event) => handleImageURLsInputChange(event, field.name)}
                                                     />
                                                 </Form.Item>
-                                                {fields.length > 1 ? (
-                                                    <MinusCircleOutlined
-                                                        className="dynamic-delete-button"
-                                                        onClick={() => remove(field.name)}
-                                                    />
-                                                ) : null}
+
+                                                <MinusCircleOutlined
+                                                    className="dynamic-delete-button"
+                                                    onClick={() => { handleRemoveImageURLsInput(field.name); remove(field.name)}}
+                                                />
                                             </Form.Item>
                                         ))}
                                         <Form.Item>
@@ -251,7 +321,7 @@ const ListProducts = () => {
                                             >
                                                 Add Image
                                             </Button>
-                                            
+
                                             <Form.ErrorList errors={errors} />
                                         </Form.Item>
                                     </>
@@ -269,13 +339,17 @@ const ListProducts = () => {
                         }
                     </Form.Item>
                     <Form.Item name={['price']} label="Price" rules={[{ type: 'number', min: 0, max: 9999999999 }]}>
-                        <InputNumber style={{width: "100%"}}/>
+                        <InputNumber style={{ width: "100%" }} onChange={(event) => handleInputChange(event, "price")} />
                     </Form.Item>
                     <Form.Item name={['categoryId']} label="Category">
-                        <Input />
+                        <Select defaultValue={categories[0]?.id} onChange={(value) => {setProduct({...product, categoryId: value})}}>
+                            {categories.map(cate => (
+                                <Option value={cate.id}>{cate.categoryName}</Option>
+                            ))}
+                        </Select>
                     </Form.Item>
                     <Form.Item name={['description']} label="Description">
-                        <Input.TextArea />
+                        <Input.TextArea onChange={(event) => handleInputChange(event, "description")} />
                     </Form.Item>
                 </Form>
             </Modal>
