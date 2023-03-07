@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../../../layouts/AdminLayout";
-import { Avatar, Table, Modal, Button, Form, Input, InputNumber, Upload, Select, message } from 'antd';
-import { DeleteOutlined, EditOutlined, ExclamationCircleFilled, FileAddOutlined, InboxOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { Avatar, Table, Modal, Button, Form, Input, InputNumber, Upload, Select, message, Tooltip, Card, Row, Col } from 'antd';
+import {
+    DeleteOutlined,
+    EditOutlined,
+    ExclamationCircleFilled,
+    FileAddOutlined,
+    EyeOutlined,
+    PlusOutlined
+} from '@ant-design/icons';
 import ProductServices from '../../../apis/productServices';
 import CategoryServices from '../../../apis/categoryServices';
+import PATH from "../../../commons/path";
 const { confirm } = Modal;
 const { Option } = Select;
-const { Dragger } = Upload;
+const { Meta } = Card;
 
 const ListProducts = () => {
     const [products, setProducts] = useState([]);
@@ -20,10 +28,27 @@ const ListProducts = () => {
         categoryId: ""
     });
     const [loadings, setLoadings] = useState([]);
-    const [imageChoosing, setImageChoosing] = useState("upload");
-
-    const [imageURLs, setImageURLs] = useState([]);
-    const [open, setOpen] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createForm] = Form.useForm();
+    const [fileList, setFileList] = useState([]);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState('');
+    const [previewTitle, setPreviewTitle] = useState('');
+    const [formValidations, setFormValidations] = useState({
+        productName: {
+            errorType: "warning",
+            help: "Product name is required! don't forget to type it!"
+        },
+        price: {
+            errorType: "warning",
+            help: "Price must be a number and must be in range from 0 -> 9999999999"
+        },
+        category: {
+            errorType: "warning",
+            help: "You need to choose a category for your product!"
+        }
+    });
 
     const getAllProducts = async () => {
         const res = await ProductServices.getAllProducts();
@@ -39,35 +64,79 @@ const ListProducts = () => {
         if (res.status === 200) {
             if (res.data.results.length) {
                 setCategories(res.data.results);
-                setProduct({...product, categoryId: res.data.results[0].id});
+                setProduct({ ...product, categoryId: res.data.results[0].id });
             }
         }
     }
 
     const handleCreateNew = async () => {
-        
-        console.log(product);
-        const res = await ProductServices.createProduct(product);
-        if (res.status === 200) {
-            await getAllProducts()
+        setIsCreating(true);
+        if (fileList.length) {
+            const formData = new FormData();
+            fileList.forEach((file) => {
+                formData.append('files', file.originFileObj);
+            });
+            message.info("Uploading Images...");
+            const uploadedImages = await ProductServices.uploadFiles(formData);
+            if (uploadedImages.status === 200) {
+                if (uploadedImages.data.results && uploadedImages.data.results.length) {
+                    product.imageURLs = uploadedImages.data.results;
+                    message.success(`Uploaded ${uploadedImages.data.results.length} Images`);
+                }
+                message.info("Creating product...");
+                const res = await ProductServices.createProduct(product);
+                if (res.status === 200) {
+                    if(res.data.isSuccess) {
+                        await getAllProducts();
+                        message.success("Created!!!");
+                        setCreateOpen(false);
+                        setDisableCreateButton(true);
+                        setProduct({
+                            productName: "",
+                            price: 0,
+                            imageURLs: [],
+                            description: "",
+                            categoryId: ""
+                        });
+                        setFileList([]);
+                    } else {
+                        message.error(res.data.message);
+                    }
+                    
+                } else {
+                    message.error("Cannot create product with unknown errors!!!");
+                }
+
+            } else {
+                message.error(`Cannot upload ${fileList.length} Images`);
+            }
         }
-        setOpen(false);
+        setIsCreating(false);
     }
 
-    const showDeleteConfirm = (index) => {
+    const handleDelete = async (id) => {
+        const res = await ProductServices.deleteProduct(id);
+        if (res.status === 200) {
+            await getAllProducts();
+            message.info("Deleted!!!")
+        }
+    }
+
+    const showDeleteConfirm = (index, id) => {
         setLoadings((prevLoadings) => {
             const newLoadings = [...prevLoadings];
             newLoadings[index] = true;
             return newLoadings;
         });
         confirm({
-            title: 'Are you sure delete this product?',
+            title: <h4>Are you sure you want to delete this product?</h4>,
             icon: <ExclamationCircleFilled />,
-            content: 'This action will delete this product forever and you cannot recover it in the future!!!',
+            content: <span style={{ color: "red" }}>This action will delete this product and all the info related to this product contains all media components forever and you cannot recover it in the future!!!</span>,
             okText: 'Yes',
             okType: 'danger',
             cancelText: 'No',
             onOk() {
+                handleDelete(id);
                 setLoadings((prevLoadings) => {
                     const newLoadings = [...prevLoadings];
                     newLoadings[index] = false;
@@ -86,7 +155,11 @@ const ListProducts = () => {
 
     const columns = [
         {
-            render: (text, record, index) => (<Avatar src={record.imageURLs.find(i => i.isMainImage).url} />),
+            render: (text, record, index) => (<Avatar src={
+                record.imageURLs.find(i => i.isMainImage).url.includes("https") ?
+                    record.imageURLs.find(i => i.isMainImage).url :
+                    `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
+            } />),
             title: 'Image',
             dataIndex: 'imageURL',
             width: 150,
@@ -113,72 +186,74 @@ const ListProducts = () => {
         {
             title: 'Action',
             render: (text, record, index) => (<>
-                <Button
-                    type="dashed"
-                    icon={<EditOutlined />}
+                <Tooltip placement="left"
+                    style={{ opacity: 0 }}
+                    color="#000000"
+                    arrow={false} title={(
+                        <Card
+                            cover={<img alt="example" src={
+                                record.imageURLs.find(i => i.isMainImage).url.includes("https") ?
+                                    record.imageURLs.find(i => i.isMainImage).url :
+                                    `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
+                            } />}
+                        >
+                            <Meta title={record.productName} description={record.description} />
+                        </Card>
+                    )}>
+                    <Button
+                        type="text"
+                        icon={<EyeOutlined />}
 
-                // onClick={() => enterLoading(2)}
+                    />
+                </Tooltip>
+
+                <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                // onClick={() => {
+
+                //     getProduct(record.id);
+                //     setUpdateOpen(true);
+                // }}
                 />
                 <Button
                     type="text"
                     danger
                     icon={<DeleteOutlined />}
-                    onClick={() => showDeleteConfirm(index)}
+                    onClick={() => showDeleteConfirm(index, record.id)}
                     loading={loadings[index]}
-                // onClick={() => enterLoading(2)}
                 />
             </>),
             width: 150,
         },
     ];
 
-    const validateMessages = {
-        required: '${label} is required!',
-        types: {
-            name: '${label} is not a valid email!',
-        },
-        number: {
-            range: '${label} must be between ${min} and ${max}',
-        },
-    };
-
-    const layout = {
-        labelCol: { span: 4 },
-        wrapperCol: { span: 16 },
-    };
-
     useEffect(() => {
         getAllProducts();
         getAllCategories();
     }, []);
 
-    const props = {
-        name: 'file',
-        multiple: true,
-        action: 'https://localhost:7023/api/file/upload',
-        onChange(info) {
-            const { status } = info.file;
-            if (status === 'done') {
-                message.success(`${info.file.name} file uploaded successfully.`);
-                const { fileList } = info;
-                const fileResponse = fileList.map(file => file.response?.result);
-                setProduct({ ...product, imageURLs: fileResponse});
-            } else if (status === 'error') {
-                message.error(`${info.file.name} file upload failed.`);
-            } else if (status === 'removed') {
-                const { fileList } = info;
-                const fileResponse = fileList.map(file => file.response?.result);
-                setProduct({ ...product, imageURLs: fileResponse});
-            }
-        },
-        onDrop(e) {
-            message.info('Dropped files');
-        },
-        accept: "image/png, image/jpeg, image/jpg, image/webp"
+    const handleCancel = () => setPreviewOpen(false);
+    const handleImagePreview = async (file) => {
+        if (!file.url && !file.preview) {
+            file.preview = await getBase64(file.originFileObj);
+        }
+        setPreviewImage(file.url || file.preview);
+        setPreviewOpen(true);
+        setPreviewTitle(file.name || file.url.substring(file.url.lastIndexOf('/') + 1));
     };
+    const handleImagesChange = ({ fileList: newFileList }) => setFileList(newFileList);
+
+    const getBase64 = (file) =>
+        new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+        });
 
     const handleInputChange = (event, name) => {
-        if (event || event.target.value) {
+        if (event) {
             if (name.includes("price")) {
                 setProduct({ ...product, [name]: event });
             } else {
@@ -191,43 +266,13 @@ const ListProducts = () => {
         }
     }
 
-    const handleImageURLsInputChange = (event, key) => {
-        if (event.target.value) {
-            const image = {
-                isMainImage: key === 0 ? true : false,
-                url: event.target.value,
-            }
-            if (imageURLs[key]) {
-                let images = [...imageURLs]
-                images[key] = image;
-                setImageURLs(images);
-                setProduct({ ...product, imageURLs: images});
-            } else {
-                setImageURLs(imageURLs => [...imageURLs, image]);
-                setProduct({ ...product, imageURLs: imageURLs});
-            }
+    const fieldValidate = () => {
 
-            if (product.productName && product.price) {
-                setDisableCreateButton(false);
-            }
-        }
     }
-
-    const handleRemoveImageURLsInput = (key) => {
-        let images = [...imageURLs];
-        images.splice(key, 1);
-        setImageURLs(images);
-        setProduct({ ...product, imageURLs: images});
-        if (product.categoryId && product.productName && product.price) {
-            setDisableCreateButton(false);
-        }
-    }
-
-    console.log(product);
 
     return (
         <MainLayout>
-            <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setOpen(true)}>
+            <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
                 Create a new product
             </Button>
             <Table
@@ -244,114 +289,118 @@ const ListProducts = () => {
             <Modal
                 title="Create a new product"
                 centered
-                open={open}
-                onOk={() => handleCreateNew()}
-                onCancel={() => setOpen(false)}
-                width={1000}
+                open={createOpen}
+                onOk={async () => { await handleCreateNew(); createForm.resetFields() }}
+                onCancel={() => { setCreateOpen(false); createForm.resetFields() }}
+                width={800}
                 okButtonProps={{ disabled: createButton }}
+                estroyOnClose={true}
+                confirmLoading={isCreating}
             >
+                <Row gutter={8}>
+                    <Col className="gutter-row" span={3} style={{ textAlign: "right" }}>
+                        Images:
+                    </Col>
+                    <Col className="gutter-row" span={21}>
+                        <Upload
+                            listType="picture-card"
+                            fileList={fileList}
+                            onPreview={handleImagePreview}
+                            onChange={handleImagesChange}
+                            multiple
+                            maxCount={5}
+                            beforeUpload={(file) => {
+                                setFileList(fileList => [...fileList, file]);
+                                return false;
+                            }
+                            }
+                            onRemove={(file) => {
+                                const index = fileList.indexOf(file);
+                                const newFileList = fileList.slice();
+                                newFileList.splice(index, 1);
+                                setFileList(newFileList);
+                            }
+                            }
+                        >
+                            {fileList.length >= 5 ? null :
+                                <div>
+                                    <PlusOutlined />
+                                    <div
+                                        style={{
+                                            marginTop: 8,
+                                        }}
+                                    >
+                                        Upload(max: 5 images)
+                                    </div>
+                                </div>}
+                        </Upload>
+                        <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
+                            <img
+                                alt="example"
+                                style={{
+                                    width: '100%',
+                                }}
+                                src={previewImage}
+                            />
+                        </Modal>
+                    </Col>
+                </Row>
+
                 <Form
-                    {...layout}
-                    name="nest-messages"
-                    // onFinish={onFinish}
-                    onError={() => setDisableCreateButton(true)}
+                    form={createForm}
+                    {...{
+                        labelCol: { span: 3 }
+                    }}
+                    name="create-new-product-modal"
+                    onErrorCapture={(e) => setDisableCreateButton(true)}
                     style={{ maxWidth: 1000 }}
-                    validateMessages={validateMessages}
                 >
-                    <Form.Item name={['productName']} label="Name" rules={[{ required: true }]}>
-                        <Input onChange={(event) => handleInputChange(event, "productName")} />
+                    <Form.Item
+                        name={['productName']}
+                        label="Name"
+                        rules={[{ required: true }]}
+                        hasFeedback
+                        validateStatus={formValidations.productName.errorType}
+                        help={formValidations.productName.help}
+                        >
+                        <Input onErrorCapture={() => console.log("error")} onChange={(event) => handleInputChange(event, "productName")} />
                     </Form.Item>
-                    <Form.Item name={['selectImageURLType']} label="Select Image Data Type">
-                        <Select defaultValue="upload" onChange={(value) => setImageChoosing(value)}>
-                            <Option value="link">Image URLs</Option>
-                            <Option value="upload">Upload</Option>
-                        </Select>
+                    <Form.Item
+                        name={['price']}
+                        label="Price"
+                        rules={[{ type: 'number', min: 0, max: 9999999999 }]}
+                        hasFeedback
+                        validateStatus={formValidations.price.errorType}
+                        help={formValidations.price.help}
+                        >
+                        <InputNumber style={{ width: "100%" }} required onChange={(event) => handleInputChange(event, "price")} />
                     </Form.Item>
-                    <Form.Item name={['imageURL']} label="Image" >
-                        {imageChoosing === "link" ?
-                            <Form.List name="names" key={"list-image-urls"}>
-                                {(fields, { add, remove }, { errors }) => (
-                                    <>
-                                        {fields.map((field, index) => (
-                                            <Form.Item
-                                                required={false}
-                                                key={field.key}
-                                            >
-                                                <Form.Item
-                                                    {...field}
-                                                    validateTrigger={['onChange', 'onBlur']}
-                                                    rules={[
-                                                        {
-                                                            required: true,
-                                                            whitespace: false,
-                                                            message: "Please input image URL or delete this field.",
-                                                        },
-                                                        {
-                                                            required: true,
-                                                            pattern: /^(http(s)?:\/\/.)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&=]*)/igm,
-                                                            message: "Please input valid image URL or delete this field.",
-                                                        }
-                                                    ]}
-                                                    noStyle
-                                                >
-                                                    <Input
-                                                        placeholder="image url"
-                                                        style={{
-                                                            width: '95%',
-                                                            marginRight: 10
-                                                        }}
-                                                        onChange={(event) => handleImageURLsInputChange(event, field.name)}
-                                                    />
-                                                </Form.Item>
-
-                                                <MinusCircleOutlined
-                                                    className="dynamic-delete-button"
-                                                    onClick={() => { handleRemoveImageURLsInput(field.name); remove(field.name)}}
-                                                />
-                                            </Form.Item>
-                                        ))}
-                                        <Form.Item>
-                                            <Button
-                                                type="dashed"
-                                                onClick={() => add()}
-                                                style={{
-                                                    width: '100%',
-                                                }}
-                                                icon={<PlusOutlined />}
-                                            >
-                                                Add Image
-                                            </Button>
-
-                                            <Form.ErrorList errors={errors} />
-                                        </Form.Item>
-                                    </>
-                                )}
-                            </Form.List> :
-                            <Dragger {...props}>
-                                <p className="ant-upload-drag-icon">
-                                    <InboxOutlined />
-                                </p>
-                                <p className="ant-upload-text">Click or drag file to this area to upload</p>
-                                <p className="ant-upload-hint">
-                                    Only support for the extensions: png, jpg, jpeg, webp!
-                                </p>
-                            </Dragger>
-                        }
-                    </Form.Item>
-                    <Form.Item name={['price']} label="Price" rules={[{ type: 'number', min: 0, max: 9999999999 }]}>
-                        <InputNumber style={{ width: "100%" }} onChange={(event) => handleInputChange(event, "price")} />
-                    </Form.Item>
-                    <Form.Item name={['categoryId']} label="Category">
-                        <Select defaultValue={categories[0]?.id} onChange={(value) => {setProduct({...product, categoryId: value})}}>
+                    <Form.Item
+                        name={['categoryId']}
+                        label="Category"
+                        hasFeedback
+                        validateStatus={formValidations.category.errorType}
+                        help={formValidations.category.help}
+                        >
+                        <Select
+                            showSearch
+                            optionFilterProp="children"
+                            filterOption={(input, option) => (option?.children.toLowerCase() ?? '').includes(input.toLowerCase())}
+                            filterSort={(optionA, optionB) =>
+                                (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
+                            }
+                            onChange={(value) => { setProduct({ ...product, categoryId: value }) }}>
                             {categories.map(cate => (
-                                <Option value={cate.id}>{cate.categoryName}</Option>
+                                <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
                             ))}
                         </Select>
                     </Form.Item>
                     <Form.Item name={['description']} label="Description">
                         <Input.TextArea onChange={(event) => handleInputChange(event, "description")} />
                     </Form.Item>
+
                 </Form>
+
             </Modal>
         </MainLayout>
     );

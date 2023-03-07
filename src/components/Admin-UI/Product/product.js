@@ -2,12 +2,28 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import ProductServices from "../../../apis/productServices";
 import AdminLayout from '../../../layouts/AdminLayout';
-import { Button, Checkbox, Form, Input } from 'antd';
+import { Modal, Upload } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 
 
 const Product = () => {
     const [product, setProduct] = useState();
     const params = useParams();
+    const [fileList, setFileList] = useState([]);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewImage, setPreviewImage] = useState('');
+    const [previewTitle, setPreviewTitle] = useState('');
+    const handleCancel = () => setPreviewOpen(false);
+    const handlePreview = async (file) => {
+        if (!file.url && !file.preview) {
+            file.preview = await getBase64(file.originFileObj);
+        }
+        setPreviewImage(file.url || file.preview);
+        setPreviewOpen(true);
+        setPreviewTitle(file.name || file.url.substring(file.url.lastIndexOf('/') + 1));
+    };
+    const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
+
     const getProduct = async () => {
         const res = await ProductServices.getProduct(params.id);
         if (res.status === 200) {
@@ -19,89 +35,49 @@ const Product = () => {
         getProduct();
     }, []);
 
-    const onFinish = async (values) => {
-        const res = await ProductServices.updateProduct(values);
-        if(res) {
-            console.log(res);
-        }
-    };
+    const uploadButton = (
+        <div>
+            <PlusOutlined />
+            <div
+                style={{
+                    marginTop: 8,
+                }}
+            >
+                Upload
+            </div>
+        </div>
+    );
 
-    const onFinishFailed = (errorInfo) => {
-        console.log('Failed:', errorInfo);
-    };
+    const getBase64 = (file) =>
+        new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+        });
 
     return (
         <AdminLayout>
-            {
-                product ? 
-                <Form
-                name="basic"
-                labelCol={{
-                    span: 8,
-                }}
-                wrapperCol={{
-                    span: 16,
-                }}
-                style={{
-                    maxWidth: 600,
-                }}
-                initialValues={{
-                    remember: true,
-                }}
-                onFinish={onFinish}
-                onFinishFailed={onFinishFailed}
-                autoComplete="off"
+            <Upload
+                beforeUpload={() => {return false}}
+                listType="picture-card"
+                fileList={fileList}
+                onPreview={handlePreview}
+                onChange={handleChange}
+                multiple
+                maxCount={8}
             >
-                <Form.Item
-                    name="id"
-                    hidden={true}
-                    initialValue={product ? product.id : ""}
-                >
-                    <Input/>
-                </Form.Item>
-
-                <Form.Item
-                    label="Category Name"
-                    name="categoryName"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Please input your category name!',
-                        },
-                    ]}
-                    initialValue={product.productName}
-                >
-                    <Input/>
-                </Form.Item>
-
-                <Form.Item
-                    label="Description"
-                    name="url"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Please input your category Url!',
-                        },
-                    ]}
-                    initialValue = {product ? product.description : ""}
-                >
-                    <Input />
-                </Form.Item>
-
-                <Form.Item
-                    wrapperCol={{
-                        offset: 8,
-                        span: 16,
+                {fileList.length >= 8 ? null : uploadButton}
+            </Upload>
+            <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
+                <img
+                    alt="example"
+                    style={{
+                        width: '100%',
                     }}
-                >
-                    <Button type="primary" htmlType="submit">
-                        Submit
-                    </Button>
-                </Form.Item>
-            </Form>:
-            <></>
-            }
-            
+                    src={previewImage}
+                />
+            </Modal>
         </AdminLayout>
     );
 }

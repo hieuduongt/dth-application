@@ -1,4 +1,5 @@
 import ApiCreator from "./apiCreator";
+import FileUploader from "./fileApiCreator";
 import PATH from "../commons/path";
 
 const ProductServices = {
@@ -28,7 +29,11 @@ const ProductServices = {
     },
     uploadFile: (data) => {
         const url = `${PATH.BASEURL}/file/upload`
-        return ApiCreator.post(url, data);
+        return FileUploader.post(url, data);
+    },
+    uploadFiles: (data) => {
+        const url = `${PATH.BASEURL}/file/upload-many`
+        return FileUploader.post(url, data);
     }
 };
 export default ProductServices;

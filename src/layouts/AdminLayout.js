@@ -1,28 +1,28 @@
-import { FileOutlined, SaveFilled, DesktopOutlined, ContainerFilled, ProfileFilled } from '@ant-design/icons';
+import { FileOutlined, DesktopOutlined, ContainerFilled, ProfileFilled } from '@ant-design/icons';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Breadcrumb, Layout, Menu, theme } from 'antd';
+import { Avatar, Layout, Menu, theme, Popover, Button } from 'antd';
 import { useEffect, useState } from 'react';
 import PATH from '../commons/path';
 const { Header, Content, Footer, Sider } = Layout;
 
 function getItem(label, key, icon, children) {
     return {
-      key,
-      icon,
-      children,
-      label,
+        key,
+        icon,
+        children,
+        label,
     };
-  }
-  const items = [
+}
+const items = [
     getItem((<NavLink exact to={PATH.ADMIN.HOME}> Dashboard</NavLink>), 'home', <DesktopOutlined />),
     getItem("Category", 'catesub', <ContainerFilled />, [
-      getItem((<NavLink exact to={PATH.ADMIN.LIST_CATEGORIES}> List</NavLink>), 'list-categories'),
+        getItem((<NavLink exact to={PATH.ADMIN.LIST_CATEGORIES}> List</NavLink>), 'list-categories'),
     ]),
     getItem('Product', 'productSub', <ProfileFilled />, [
         getItem((<NavLink exact to={PATH.ADMIN.LIST_PRODUCTS}> List</NavLink>), 'list-products'),
     ]),
     getItem('Files', '9', <FileOutlined />),
-  ];
+];
 
 const listItems = [
     {
@@ -61,59 +61,73 @@ const MainLayout = (props) => {
         }
         const pathName = location.pathname;
         const currentActivatedItem = listItems.find(i => i.pathName.includes(pathName));
-        if(currentActivatedItem) {
+        if (currentActivatedItem) {
             setCurrentItem(currentActivatedItem.key);
             setOpenSubMenu((openSubMenu) => ([...openSubMenu, currentActivatedItem.parent]));
         };
-    }, []);
+    }, [location.pathname]);
 
     return (
-            <Layout
-                style={{
-                    minHeight: '100vh',
-                }}
-            >
-                <Sider collapsible theme={defaultTheme} collapsed={collapsed} defaultCollapsed={true} onCollapse={(value) => setCollapsed(value)} breakpoint="sm">
+        <Layout
+            style={{
+                minHeight: '100vh',
+            }}
+        >
+            <Sider collapsible theme={defaultTheme} collapsed={collapsed} defaultCollapsed={true} onCollapse={(value) => setCollapsed(value)} breakpoint="sm">
+                <div
+                    style={{
+                        height: 32,
+                        margin: 16,
+                        background: 'rgba(255, 255, 255, 0.2)',
+                    }}
+                />
+                <Menu onOpenChange={(keys) => setOpenSubMenu(keys)} theme={defaultTheme} openKeys={openSubMenu} selectedKeys={[currentItem]} mode="inline" items={items} datatype={NavLink} />
+            </Sider>
+            <Layout className="site-layout">
+                <Header
+                    style={{
+                        textAlign: "right",
+                        paddingRight: 20,
+                        background: colorBgContainer,
+                    }}
+                >
+                    <Popover placement="bottomRight" title={"Hieu Duong"} content={
+                        <div>
+                            <p>
+                            Welcome to DTH Application
+                            </p>
+                            
+                            <Button>Log out</Button>
+                        </div>
+                    } trigger="click" arrow={false}>
+                        <Avatar src="/title-icon.PNG" alt='Hieu Duong' style={{ border: "1px solid rgb(43 149 255)", cursor: "pointer"}} />
+                    </Popover>
+                    
+                </Header>
+                <Content
+                    style={{
+                        margin: '16px 16px',
+                    }}
+                >
                     <div
                         style={{
-                            height: 32,
-                            margin: 16,
-                            background: 'rgba(255, 255, 255, 0.2)',
-                        }}
-                    />
-                    <Menu onOpenChange={(keys) => setOpenSubMenu(keys)} theme={defaultTheme} openKeys={openSubMenu} selectedKeys={[currentItem]} mode="inline" items={items} datatype={NavLink}/>
-                </Sider>
-                <Layout className="site-layout">
-                    <Header
-                        style={{
-                            padding: 0,
+                            padding: 24,
+                            minHeight: 360,
                             background: colorBgContainer,
                         }}
-                    />
-                    <Content
-                        style={{
-                            margin: '16px 16px',
-                        }}
                     >
-                        <div
-                            style={{
-                                padding: 24,
-                                minHeight: 360,
-                                background: colorBgContainer,
-                            }}
-                        >
-                            {children}
-                        </div>
-                    </Content>
-                    <Footer
-                        style={{
-                            textAlign: 'center',
-                        }}
-                    >
-                        DTH Apllication ©2023 Created by Hieu Duong 2k3
-                    </Footer>
-                </Layout>
+                        {children}
+                    </div>
+                </Content>
+                <Footer
+                    style={{
+                        textAlign: 'center',
+                    }}
+                >
+                    DTH Apllication ©2023 Created by Hieu Duong 2k3
+                </Footer>
             </Layout>
+        </Layout>
     );
 };
 export default MainLayout;

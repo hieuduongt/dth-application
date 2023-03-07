@@ -13,7 +13,8 @@ const PATH = {
         LIST_CATEGORIES: "/list-categories",
         CATEGORY: "/category/:id",
     },
-    BASEURL: "https://localhost:7023/api"
+    BASEURL: "https://localhost:7023/api",
+    IMAGEBASEURL: "https://localhost:7023"
     
 };
 

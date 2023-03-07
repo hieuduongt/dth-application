@@ -2,8 +2,8 @@ import React from 'react';
 import { Switch, Route } from 'react-router-dom';
 import AdminProductListPage from '../components/Admin-UI/ListProducts/list-products';
 import AdminProductDetailPage from '../components/Admin-UI/Product/product';
-import UserProductDetailPage from '../components/User-UI/ListProducts/list-products';
-import UserProductListPage from '../components/Admin-UI/Product/product';
+import UserProductDetailPage from '../components/User-UI/Product/product';
+import UserProductListPage from '../components/User-UI/ListProducts/list-products';
 import PATH from '../commons/path';
 
 function HomeRoute() {
