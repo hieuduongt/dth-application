@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../../../layouts/AdminLayout";
-import { Avatar, Table, Modal, Button, Form, Input, InputNumber, Upload, Select, message, Tooltip, Card, Row, Col } from 'antd';
+import { 
+    Avatar,
+    Table,
+    Modal,
+    Button,
+    Form,
+    Input,
+    Upload,
+    Select,
+    message,
+    Tooltip,
+    Card,
+    Row,
+    Col } from 'antd';
 import {
     DeleteOutlined,
     EditOutlined,
@@ -16,17 +29,68 @@ const { confirm } = Modal;
 const { Option } = Select;
 const { Meta } = Card;
 
+const defaultProduct = {
+    productName: "",
+    price: 0,
+    imageURLs: [],
+    description: "",
+    categoryId: ""
+};
+
+const defaultValidations = {
+    productName: {
+        errorType: "",
+        help: "Product name is required! don't forget to type it!"
+    },
+    price: {
+        errorType: "",
+        help: "Price must be a number and must be in range from 0 -> 9999999999"
+    },
+    category: {
+        errorType: "",
+        help: "You need to choose a category for your product!"
+    }
+};
+
+const validationRules = {
+    productName: [
+        {
+            rule: /.+/i,
+            message: "Product name is required"
+        },
+        {
+            rule: /^[a-z0-9\s\!]+$/i,
+            message: "Product name must not contain special characters"
+        }
+    ],
+    price: [
+        {
+            rule: /.+/i,
+            message: "Price is required"
+        },
+        {
+            rule: /^[0-9]+$/i,
+            message: "Price must be a number"
+        },
+        {
+            rule: /^\d{0,10}$/i,
+            message: "Price must be in range from 0 -> 9999999999"
+        }
+    ],
+    categoryId: [
+        {
+            rule: /.+/i,
+            message: "Category is required"
+        }
+    ]
+};
+
 const ListProducts = () => {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [createButton, setDisableCreateButton] = useState(true);
-    const [product, setProduct] = useState({
-        productName: "",
-        price: 0,
-        imageURLs: [],
-        description: "",
-        categoryId: ""
-    });
+    const [product, setProduct] = useState(defaultProduct);
+
     const [loadings, setLoadings] = useState([]);
     const [isCreating, setIsCreating] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
@@ -35,123 +99,7 @@ const ListProducts = () => {
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState('');
     const [previewTitle, setPreviewTitle] = useState('');
-    const [formValidations, setFormValidations] = useState({
-        productName: {
-            errorType: "warning",
-            help: "Product name is required! don't forget to type it!"
-        },
-        price: {
-            errorType: "warning",
-            help: "Price must be a number and must be in range from 0 -> 9999999999"
-        },
-        category: {
-            errorType: "warning",
-            help: "You need to choose a category for your product!"
-        }
-    });
-
-    const getAllProducts = async () => {
-        const res = await ProductServices.getAllProducts();
-        if (res.status === 200) {
-            if (res.data.results.length) {
-                setProducts(res.data.results);
-            }
-        }
-    }
-
-    const getAllCategories = async () => {
-        const res = await CategoryServices.getAllCategories();
-        if (res.status === 200) {
-            if (res.data.results.length) {
-                setCategories(res.data.results);
-                setProduct({ ...product, categoryId: res.data.results[0].id });
-            }
-        }
-    }
-
-    const handleCreateNew = async () => {
-        setIsCreating(true);
-        if (fileList.length) {
-            const formData = new FormData();
-            fileList.forEach((file) => {
-                formData.append('files', file.originFileObj);
-            });
-            message.info("Uploading Images...");
-            const uploadedImages = await ProductServices.uploadFiles(formData);
-            if (uploadedImages.status === 200) {
-                if (uploadedImages.data.results && uploadedImages.data.results.length) {
-                    product.imageURLs = uploadedImages.data.results;
-                    message.success(`Uploaded ${uploadedImages.data.results.length} Images`);
-                }
-                message.info("Creating product...");
-                const res = await ProductServices.createProduct(product);
-                if (res.status === 200) {
-                    if(res.data.isSuccess) {
-                        await getAllProducts();
-                        message.success("Created!!!");
-                        setCreateOpen(false);
-                        setDisableCreateButton(true);
-                        setProduct({
-                            productName: "",
-                            price: 0,
-                            imageURLs: [],
-                            description: "",
-                            categoryId: ""
-                        });
-                        setFileList([]);
-                    } else {
-                        message.error(res.data.message);
-                    }
-                    
-                } else {
-                    message.error("Cannot create product with unknown errors!!!");
-                }
-
-            } else {
-                message.error(`Cannot upload ${fileList.length} Images`);
-            }
-        }
-        setIsCreating(false);
-    }
-
-    const handleDelete = async (id) => {
-        const res = await ProductServices.deleteProduct(id);
-        if (res.status === 200) {
-            await getAllProducts();
-            message.info("Deleted!!!")
-        }
-    }
-
-    const showDeleteConfirm = (index, id) => {
-        setLoadings((prevLoadings) => {
-            const newLoadings = [...prevLoadings];
-            newLoadings[index] = true;
-            return newLoadings;
-        });
-        confirm({
-            title: <h4>Are you sure you want to delete this product?</h4>,
-            icon: <ExclamationCircleFilled />,
-            content: <span style={{ color: "red" }}>This action will delete this product and all the info related to this product contains all media components forever and you cannot recover it in the future!!!</span>,
-            okText: 'Yes',
-            okType: 'danger',
-            cancelText: 'No',
-            onOk() {
-                handleDelete(id);
-                setLoadings((prevLoadings) => {
-                    const newLoadings = [...prevLoadings];
-                    newLoadings[index] = false;
-                    return newLoadings;
-                });
-            },
-            onCancel() {
-                setLoadings((prevLoadings) => {
-                    const newLoadings = [...prevLoadings];
-                    newLoadings[index] = false;
-                    return newLoadings;
-                });
-            },
-        });
-    }
+    const [formValidations, setFormValidations] = useState(defaultValidations);
 
     const columns = [
         {
@@ -233,6 +181,115 @@ const ListProducts = () => {
         getAllCategories();
     }, []);
 
+    useEffect(() => {
+        if(product.categoryId && product.price && product.productName) {
+            setDisableCreateButton(false);
+        }
+    }, [product]);
+
+    const getAllProducts = async () => {
+        const res = await ProductServices.getAllProducts();
+        if (res.status === 200) {
+            if (res.data.results.length) {
+                setProducts(res.data.results);
+            }
+        }
+    }
+
+    const getAllCategories = async () => {
+        const res = await CategoryServices.getAllCategories();
+        if (res.status === 200) {
+            if (res.data.results.length) {
+                setCategories(res.data.results);
+            }
+        }
+    }
+
+    const handleCreateNew = async () => {
+        setIsCreating(true);
+        if (fileList.length) {
+            const formData = new FormData();
+            fileList.forEach((file) => {
+                formData.append('files', file.originFileObj);
+            });
+            message.info("Uploading Images...");
+            const uploadedImages = await ProductServices.uploadFiles(formData);
+            if (uploadedImages.status === 200) {
+                if (uploadedImages.data.results && uploadedImages.data.results.length) {
+                    product.imageURLs = uploadedImages.data.results;
+                    message.success(`Uploaded ${uploadedImages.data.results.length} Images`);
+                }
+                message.info("Creating product...");
+                const res = await ProductServices.createProduct(product);
+                if (res.status === 200) {
+                    if (res.data.isSuccess) {
+                        await getAllProducts();
+                        message.success("Created!!!");
+                        setCreateOpen(false);
+                        setDisableCreateButton(true);
+                        setProduct({
+                            productName: "",
+                            price: 0,
+                            imageURLs: [],
+                            description: "",
+                            categoryId: ""
+                        });
+                        setFileList([]);
+                        setFormValidations(defaultValidations);
+                    } else {
+                        message.error(res.data.message);
+                    }
+
+                } else {
+                    message.error("Cannot create product with unknown errors!!!");
+                }
+
+            } else {
+                message.error(`Cannot upload ${fileList.length} Images`);
+            }
+        }
+        setIsCreating(false);
+    }
+
+    const handleDelete = async (id) => {
+        const res = await ProductServices.deleteProduct(id);
+        if (res.status === 200) {
+            await getAllProducts();
+            message.info("Deleted!!!")
+        }
+    }
+
+    const showDeleteConfirm = (index, id) => {
+        setLoadings((prevLoadings) => {
+            const newLoadings = [...prevLoadings];
+            newLoadings[index] = true;
+            return newLoadings;
+        });
+        confirm({
+            title: <h4>Are you sure you want to delete this product?</h4>,
+            icon: <ExclamationCircleFilled />,
+            content: <span style={{ color: "red" }}>This action will delete this product and all the info related to this product contains all media components forever and you cannot recover it in the future!!!</span>,
+            okText: 'Yes',
+            okType: 'danger',
+            cancelText: 'No',
+            onOk() {
+                handleDelete(id);
+                setLoadings((prevLoadings) => {
+                    const newLoadings = [...prevLoadings];
+                    newLoadings[index] = false;
+                    return newLoadings;
+                });
+            },
+            onCancel() {
+                setLoadings((prevLoadings) => {
+                    const newLoadings = [...prevLoadings];
+                    newLoadings[index] = false;
+                    return newLoadings;
+                });
+            },
+        });
+    }
+
     const handleCancel = () => setPreviewOpen(false);
     const handleImagePreview = async (file) => {
         if (!file.url && !file.preview) {
@@ -253,21 +310,39 @@ const ListProducts = () => {
         });
 
     const handleInputChange = (event, name) => {
-        if (event) {
-            if (name.includes("price")) {
-                setProduct({ ...product, [name]: event });
-            } else {
-                setProduct({ ...product, [name]: event.target.value });
-            }
-
-            if (product.productName && product.price) {
-                setDisableCreateButton(false);
-            }
+        if (fieldValidate(name, event.target.value)) {
+            setProduct({ ...product, [name]: event.target.value });
+        } else {
+            setDisableCreateButton(true);
         }
     }
 
-    const fieldValidate = () => {
-
+    const fieldValidate = (name, value) => {
+        let invalid = false;
+        const fieldRules = validationRules[name];
+        if(!fieldRules) return true;
+        for (let index = 0; index < fieldRules.length; index++) {
+            const rule = fieldRules[index];
+            const valid = rule.rule.test(value);
+            if (!valid) {
+                invalid = true;
+                setFormValidations({
+                    ...formValidations, [name]: {
+                        errorType: "error",
+                        help: rule.message
+                    }
+                });
+                return;
+            } else {
+                setFormValidations({
+                    ...formValidations, [name]: {
+                        errorType: "success",
+                        help: ""
+                    }
+                });
+            }
+        }
+        return !invalid;
     }
 
     return (
@@ -362,7 +437,7 @@ const ListProducts = () => {
                         hasFeedback
                         validateStatus={formValidations.productName.errorType}
                         help={formValidations.productName.help}
-                        >
+                    >
                         <Input onErrorCapture={() => console.log("error")} onChange={(event) => handleInputChange(event, "productName")} />
                     </Form.Item>
                     <Form.Item
@@ -372,8 +447,8 @@ const ListProducts = () => {
                         hasFeedback
                         validateStatus={formValidations.price.errorType}
                         help={formValidations.price.help}
-                        >
-                        <InputNumber style={{ width: "100%" }} required onChange={(event) => handleInputChange(event, "price")} />
+                    >
+                        <Input style={{ width: "100%" }} onChange={(event) => handleInputChange(event, "price")} />
                     </Form.Item>
                     <Form.Item
                         name={['categoryId']}
@@ -381,7 +456,7 @@ const ListProducts = () => {
                         hasFeedback
                         validateStatus={formValidations.category.errorType}
                         help={formValidations.category.help}
-                        >
+                    >
                         <Select
                             showSearch
                             optionFilterProp="children"
@@ -389,7 +464,11 @@ const ListProducts = () => {
                             filterSort={(optionA, optionB) =>
                                 (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
                             }
-                            onChange={(value) => { setProduct({ ...product, categoryId: value }) }}>
+                            onChange={(value) => {
+                                if (fieldValidate("categoryId", value)) {
+                                    setProduct({ ...product, categoryId: value })
+                                }
+                            }}>
                             {categories.map(cate => (
                                 <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
                             ))}
