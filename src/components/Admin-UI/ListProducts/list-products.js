@@ -42,19 +42,19 @@ const defaultProduct = {
 const defaultValidations = {
     productName: {
         errorType: "",
-        help: "Product name is required! don't forget to type it!"
+        help: ""
     },
     price: {
         errorType: "",
-        help: "Price must be a number and must be in range from 0 -> 9999999999"
+        help: ""
     },
     category: {
         errorType: "",
-        help: "You need to choose a category for your product!"
+        help: ""
     },
     description: {
         errorType: "",
-        help: "Description must not contain special characters"
+        help: ""
     }
 };
 
@@ -101,16 +101,20 @@ const ListProducts = () => {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [createButton, setDisableCreateButton] = useState(true);
+    const [updateButton, setDisableUpdateButton] = useState(true);
     const [product, setProduct] = useState(defaultProduct);
 
-    const [currentProduct, setCurrentProduct] = useState(null);
-    const [isList, setIsList] = useState(true);
+    const [currentProduct, setCurrentProduct] = useState(defaultProduct);
+    const [updateForm] = Form.useForm();
+    const [updateOpen, setUpdateOpen] = useState(false);
 
     const [loadings, setLoadings] = useState([]);
     const [isCreating, setIsCreating] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [createForm] = Form.useForm();
     const [fileList, setFileList] = useState([]);
+    const [updateFileList, setUpdateFileList] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState('');
     const [previewTitle, setPreviewTitle] = useState('');
@@ -133,6 +137,7 @@ const ListProducts = () => {
             width: 150,
         },
         {
+            render: (text, record, index) => numberFormater(record.price),
             title: 'Price',
             dataIndex: 'price',
             width: 150,
@@ -163,7 +168,7 @@ const ListProducts = () => {
                     >
                         <Meta title={record.productName} description={(
                             <>
-                                <b>{record.price} đ</b>
+                                <b>{numberFormater(record.price)}</b>
                                 <span style={{
                                     display: "-webkit-box",
                                     textOverflow: "ellipsis",
@@ -191,7 +196,7 @@ const ListProducts = () => {
                 <Button
                     type="text"
                     icon={<EditOutlined />}
-                    onClick={() => setCurrentProductOnView(record)}
+                    onClick={() => handleClickUpdate(record)}
                 />
                 <Button
                     type="text"
@@ -205,6 +210,10 @@ const ListProducts = () => {
         },
     ];
 
+    const numberFormater = (number) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(number);
+    }
+
     useEffect(() => {
         getAllProducts();
         getAllCategories();
@@ -214,7 +223,11 @@ const ListProducts = () => {
         if (product.categoryId && product.price && product.productName) {
             setDisableCreateButton(false);
         }
-    }, [product]);
+
+        if (currentProduct.categoryId && currentProduct.price && currentProduct.productName) {
+            setDisableUpdateButton(false);
+        }
+    }, [product, currentProduct]);
 
     const getAllProducts = async () => {
         const res = await ProductServices.getAllProducts();
@@ -256,13 +269,7 @@ const ListProducts = () => {
                         message.success("Created!!!");
                         setCreateOpen(false);
                         setDisableCreateButton(true);
-                        setProduct({
-                            productName: "",
-                            price: 0,
-                            imageURLs: [],
-                            description: "",
-                            categoryId: ""
-                        });
+                        setProduct(defaultProduct);
                         setFileList([]);
                         setFormValidations(defaultValidations);
                     } else {
@@ -278,6 +285,76 @@ const ListProducts = () => {
             }
         }
         setIsCreating(false);
+    }
+
+    const handleUpdateProduct = async () => {
+        setIsUpdating(true);
+        let uploadedImages = updateFileList.filter(file => file.uploadedImage);
+        uploadedImages = uploadedImages.map(ui => ui.uploadedImage);
+        let notYetUploadedImages = updateFileList.filter(file => !file.uploadedImage);
+        if (notYetUploadedImages && notYetUploadedImages.length) {
+            notYetUploadedImages = notYetUploadedImages.map(ni => ni.originFileObj);
+
+            const formData = new FormData();
+            notYetUploadedImages.forEach((file) => {
+                formData.append('files', file);
+            });
+            message.info("Uploading Images...");
+            const newUploadedImages = await ProductServices.uploadFiles(formData);
+            if (newUploadedImages.status === 200) {
+                if (newUploadedImages.data.results && newUploadedImages.data.results.length) {
+                    uploadedImages = uploadedImages.concat(newUploadedImages.data.results);
+                    uploadedImages.forEach(ui => ui.productId = currentProduct.id);
+                    message.success(`Uploaded ${newUploadedImages.data.results.length} Images`);
+                }
+            } else {
+                message.error(`Cannot upload ${updateFileList.length} Images`);
+                return;
+            }
+        }
+        currentProduct.imageURLs = uploadedImages;
+
+        message.info("Updating product...");
+        const res = await ProductServices.updateProduct(currentProduct);
+        if (res.status === 200) {
+            if (res.data.isSuccess) {
+                await getAllProducts();
+                message.success("Updated!!!");
+                setUpdateOpen(false);
+                setDisableUpdateButton(true);
+                setCurrentProduct(defaultProduct);
+                setUpdateFileList([]);
+                setFormValidations(defaultValidations);
+            } else {
+                message.error(res.data.message);
+            }
+
+        } else {
+            message.error("Cannot update product with unknown errors!!!");
+        }
+        setIsUpdating(false);
+
+    }
+
+    const handleClickUpdate = (record) => {
+        setCurrentProduct(record);
+        updateForm.setFieldsValue(record);
+        const images = record.imageURLs.map((img, index) => {
+            return {
+                uid: `${index + 1}`,
+                name: img.id,
+                status: 'done',
+                url: `${PATH.IMAGEBASEURL}${img.url}`,
+                uploadedImage: {
+                    id: img.id,
+                    url: img.url,
+                    isMainImage: img.isMainImage,
+                    productId: img.productId
+                }
+            }
+        });
+        setUpdateFileList(images);
+        setUpdateOpen(true);
     }
 
     const handleDelete = async (id) => {
@@ -328,7 +405,9 @@ const ListProducts = () => {
         setPreviewOpen(true);
         setPreviewTitle(file.name || file.url.substring(file.url.lastIndexOf('/') + 1));
     };
+
     const handleImagesChange = ({ fileList: newFileList }) => setFileList(newFileList);
+    const handleUpdateImagesChange = ({ fileList: newFileList }) => setUpdateFileList(newFileList);
 
     const getBase64 = (file) =>
         new Promise((resolve, reject) => {
@@ -338,13 +417,23 @@ const ListProducts = () => {
             reader.onerror = (error) => reject(error);
         });
 
-    const handleInputChange = (event, name) => {
+    const handleInputCreateChange = (event, name) => {
         let value = event.target.value;
         value = value.trim();
         if (fieldValidate(name, value)) {
             setProduct({ ...product, [name]: value });
         } else {
             setDisableCreateButton(true);
+        }
+    }
+
+    const handleInputUpdateChange = (event, name) => {
+        let value = event.target.value;
+        value = value.trim();
+        if (fieldValidate(name, value)) {
+            setCurrentProduct({ ...currentProduct, [name]: value });
+        } else {
+            setDisableUpdateButton(true);
         }
     }
 
@@ -376,85 +465,28 @@ const ListProducts = () => {
         return !invalid;
     }
 
-    const setCurrentProductOnView = (record) => {
-        setCurrentProduct(record);
-        setIsList(false);
-    }
-
     return (
         <MainLayout>
-            {isList ?
-                <>
-                    <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
-                        Create a new product
-                    </Button>
-                    <Table
-                        className="list-products"
-                        columns={columns}
-                        dataSource={products}
-                        pagination={{
-                            pageSize: 50,
-                        }}
-                        scroll={{
-                            y: 800,
-                        }}
-                        rowKey={rowData => rowData.id}
-                    />
-                </>
-
-                :
-                <Form
-                    labelCol={{
-                        span: 2,
-                    }}
-                    wrapperCol={{
-                        span: 8,
-                    }}
-                    
-                    layout="horizontal"
-
-                >
-                    <Form.Item label="Product name">
-                        <Input defaultValue={currentProduct?.productName} />
-                    </Form.Item>
-                    <Form.Item label="Category">
-                        <Select
-                            defaultValue={currentProduct?.categoryId}
-                            showSearch
-                            optionFilterProp="children"
-                            filterOption={(input, option) => (option?.children.toLowerCase() ?? '').includes(input.toLowerCase())}
-                            filterSort={(optionA, optionB) =>
-                                (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
-                            }
-                        >
-                            {categories.map(cate => (
-                                <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                    <Form.Item label="Price">
-                        <Input defaultValue={currentProduct?.price} />
-                    </Form.Item>
-                    <Form.Item label="Description" >
-                        <Input.TextArea defaultValue={currentProduct?.description} rows={8} />
-                    </Form.Item>
-
-                    <Form.Item {...{
-                        wrapperCol: {
-                            offset: 4,
-                            span: 8,
-                        },
-                    }}>
-                        <Button type="primary" style={{ marginRight: 10 }}>Update</Button>
-                        <Button type="dashed" onClick={() => setIsList(true)}>Cancel</Button>
-                    </Form.Item>
-                </Form>
-
-            }
+            <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
+                Create a new product
+            </Button>
+            <Table
+                className="list-products"
+                columns={columns}
+                dataSource={products}
+                pagination={{
+                    pageSize: 50,
+                }}
+                scroll={{
+                    y: 800,
+                }}
+                rowKey={rowData => rowData.id}
+            />
 
             <Modal
                 title="Create a new product"
                 centered
+                okText="Create"
                 open={createOpen}
                 onOk={async () => {
                     await handleCreateNew();
@@ -536,7 +568,7 @@ const ListProducts = () => {
                         validateStatus={formValidations.productName.errorType}
                         help={formValidations.productName.help}
                     >
-                        <Input onErrorCapture={() => console.log("error")} onChange={(event) => handleInputChange(event, "productName")} />
+                        <Input placeholder="Product name is required! don't forget to type it!" onChange={(event) => handleInputCreateChange(event, "productName")} />
                     </Form.Item>
                     <Form.Item
                         name={['price']}
@@ -546,7 +578,7 @@ const ListProducts = () => {
                         validateStatus={formValidations.price.errorType}
                         help={formValidations.price.help}
                     >
-                        <Input style={{ width: "100%" }} onChange={(event) => handleInputChange(event, "price")} />
+                        <Input style={{ width: "100%" }} placeholder="Price must be a number and must be in range from 0 -> 9999999999" onChange={(event) => handleInputCreateChange(event, "price")} />
                     </Form.Item>
                     <Form.Item
                         name={['categoryId']}
@@ -556,6 +588,7 @@ const ListProducts = () => {
                         help={formValidations.category.help}
                     >
                         <Select
+                            placeholder="You need to choose a category for your product!"
                             showSearch
                             optionFilterProp="children"
                             filterOption={(input, option) => (option?.children.toLowerCase() ?? '').includes(input.toLowerCase())}
@@ -579,7 +612,139 @@ const ListProducts = () => {
                         validateStatus={formValidations.description.errorType}
                         help={formValidations.description.help}
                     >
-                        <Input.TextArea onChange={(event) => handleInputChange(event, "description")} rows={8} />
+                        <Input.TextArea placeholder="Description must not contain special characters" onChange={(event) => handleInputCreateChange(event, "description")} rows={8} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            <Modal
+                title="Create a new product"
+                centered
+                open={updateOpen}
+                onOk={() => {
+                    handleUpdateProduct();
+                }}
+                onCancel={() => {
+                    setUpdateOpen(false);
+                    setFormValidations(defaultValidations);
+                    setCurrentProduct(defaultProduct);
+                }}
+                width={800}
+                okText="Update"
+                okButtonProps={{ disabled: updateButton, danger: true }}
+                estroyOnClose={true}
+                confirmLoading={isUpdating}
+            >
+                <Row gutter={8}>
+                    <Col className="gutter-row" span={3} style={{ textAlign: "right" }}>
+                        Images:
+                    </Col>
+                    <Col className="gutter-row" span={21}>
+                        <Upload
+                            listType="picture-card"
+                            fileList={updateFileList}
+                            onPreview={handleImagePreview}
+                            onChange={handleUpdateImagesChange}
+                            multiple
+                            maxCount={5}
+                            beforeUpload={(file) => {
+                                setUpdateFileList(fileList => [...fileList, file]);
+                                return false;
+                            }
+                            }
+                            onRemove={(file) => {
+                                const index = updateFileList.indexOf(file);
+                                const newFileList = updateFileList.slice();
+                                newFileList.splice(index, 1);
+                                setUpdateFileList(newFileList);
+                            }
+                            }
+                        >
+                            {updateFileList.length >= 5 ? null :
+                                <div>
+                                    <PlusOutlined />
+                                    <div
+                                        style={{
+                                            marginTop: 8,
+                                        }}
+                                    >
+                                        Upload(max: 5 images)
+                                    </div>
+                                </div>}
+                        </Upload>
+                        <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
+                            <img
+                                alt="example"
+                                style={{
+                                    width: '100%',
+                                }}
+                                src={previewImage}
+                            />
+                        </Modal>
+                    </Col>
+                </Row>
+                <Form
+                    labelCol={{
+                        span: 3,
+                    }}
+                    wrapperCol={{
+                        span: 21,
+                    }}
+                    form={updateForm}
+                    layout="horizontal"
+
+                >
+                    <Form.Item
+                        label="Product name"
+                        name={['productName']}
+                        hasFeedback
+                        validateStatus={formValidations.productName.errorType}
+                        help={formValidations.productName.help}
+                    >
+                        <Input onChange={(event) => handleInputUpdateChange(event, "productName")} />
+                    </Form.Item>
+                    <Form.Item
+                        label="Category"
+                        name={['categoryId']}
+                        hasFeedback
+                        validateStatus={formValidations.category.errorType}
+                        help={formValidations.category.help}
+                    >
+                        <Select
+                            showSearch
+                            optionFilterProp="children"
+                            filterOption={(input, option) => (option?.children.toLowerCase() ?? '').includes(input.toLowerCase())}
+                            filterSort={(optionA, optionB) =>
+                                (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
+                            }
+                            onChange={(value) => {
+                                if (fieldValidate("categoryId", value)) {
+                                    setCurrentProduct({ ...currentProduct, categoryId: value })
+                                }
+                            }}
+                        >
+                            {categories.map(cate => (
+                                <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                    <Form.Item
+                        label="Price"
+                        name={['price']}
+                        hasFeedback
+                        validateStatus={formValidations.price.errorType}
+                        help={formValidations.price.help}
+                    >
+                        <Input onChange={(event) => handleInputUpdateChange(event, "price")} />
+                    </Form.Item>
+                    <Form.Item
+                        label="Description"
+                        name={['description']}
+                        hasFeedback
+                        validateStatus={formValidations.description.errorType}
+                        help={formValidations.description.help}
+                    >
+                        <Input.TextArea rows={8} onChange={(event) => handleInputUpdateChange(event, "description")} />
                     </Form.Item>
                 </Form>
             </Modal>
