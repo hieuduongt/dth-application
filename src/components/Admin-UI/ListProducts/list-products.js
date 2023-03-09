@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import "./list-products.css";
 import MainLayout from "../../../layouts/AdminLayout";
-import { 
+import {
     Avatar,
     Table,
     Modal,
@@ -10,10 +11,11 @@ import {
     Upload,
     Select,
     message,
-    Tooltip,
+    Popover,
     Card,
     Row,
-    Col } from 'antd';
+    Col
+} from 'antd';
 import {
     DeleteOutlined,
     EditOutlined,
@@ -49,6 +51,10 @@ const defaultValidations = {
     category: {
         errorType: "",
         help: "You need to choose a category for your product!"
+    },
+    description: {
+        errorType: "",
+        help: "Description must not contain special characters"
     }
 };
 
@@ -59,7 +65,7 @@ const validationRules = {
             message: "Product name is required"
         },
         {
-            rule: /^[a-z0-9\s\!]+$/i,
+            rule: /^[^@#^*<>=+]+$/i,
             message: "Product name must not contain special characters"
         }
     ],
@@ -82,6 +88,12 @@ const validationRules = {
             rule: /.+/i,
             message: "Category is required"
         }
+    ],
+    description: [
+        {
+            rule: /^[^@#^*<>=+]*$/i,
+            message: "Description must not contain special characters"
+        }
     ]
 };
 
@@ -90,6 +102,9 @@ const ListProducts = () => {
     const [categories, setCategories] = useState([]);
     const [createButton, setDisableCreateButton] = useState(true);
     const [product, setProduct] = useState(defaultProduct);
+
+    const [currentProduct, setCurrentProduct] = useState(null);
+    const [isList, setIsList] = useState(true);
 
     const [loadings, setLoadings] = useState([]);
     const [isCreating, setIsCreating] = useState(false);
@@ -104,7 +119,7 @@ const ListProducts = () => {
     const columns = [
         {
             render: (text, record, index) => (<Avatar src={
-                record.imageURLs.find(i => i.isMainImage).url.includes("https") ?
+                record.imageURLs.find(i => i.isMainImage).url.includes("http") ?
                     record.imageURLs.find(i => i.isMainImage).url :
                     `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
             } />),
@@ -134,35 +149,49 @@ const ListProducts = () => {
         {
             title: 'Action',
             render: (text, record, index) => (<>
-                <Tooltip placement="left"
-                    style={{ opacity: 0 }}
-                    color="#000000"
-                    arrow={false} title={(
-                        <Card
-                            cover={<img alt="example" src={
-                                record.imageURLs.find(i => i.isMainImage).url.includes("https") ?
-                                    record.imageURLs.find(i => i.isMainImage).url :
-                                    `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
-                            } />}
-                        >
-                            <Meta title={record.productName} description={record.description} />
-                        </Card>
-                    )}>
+                <Popover content={(
+                    <Card
+                        cover={<img width="200px" height="200px" alt="example" src={
+                            record.imageURLs.find(i => i.isMainImage).url.includes("https") ?
+                                record.imageURLs.find(i => i.isMainImage).url :
+                                `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
+                        } />}
+                        style={{
+                            width: "200px",
+
+                        }}
+                    >
+                        <Meta title={record.productName} description={(
+                            <>
+                                <b>{record.price} đ</b>
+                                <span style={{
+                                    display: "-webkit-box",
+                                    textOverflow: "ellipsis",
+                                    wordWrap: "break-word",
+                                    overflow: "hidden",
+                                    WebkitLineClamp: 5,
+                                    WebkitBoxOrient: "vertical"
+
+                                }}>
+                                    {record.description}
+                                </span>
+                            </>
+
+                        )} />
+                    </Card>
+                )} title={""} arrow={false} placement="left">
+
                     <Button
                         type="text"
                         icon={<EyeOutlined />}
 
                     />
-                </Tooltip>
+                </Popover>
 
                 <Button
                     type="text"
                     icon={<EditOutlined />}
-                // onClick={() => {
-
-                //     getProduct(record.id);
-                //     setUpdateOpen(true);
-                // }}
+                    onClick={() => setCurrentProductOnView(record)}
                 />
                 <Button
                     type="text"
@@ -182,7 +211,7 @@ const ListProducts = () => {
     }, []);
 
     useEffect(() => {
-        if(product.categoryId && product.price && product.productName) {
+        if (product.categoryId && product.price && product.productName) {
             setDisableCreateButton(false);
         }
     }, [product]);
@@ -310,8 +339,10 @@ const ListProducts = () => {
         });
 
     const handleInputChange = (event, name) => {
-        if (fieldValidate(name, event.target.value)) {
-            setProduct({ ...product, [name]: event.target.value });
+        let value = event.target.value;
+        value = value.trim();
+        if (fieldValidate(name, value)) {
+            setProduct({ ...product, [name]: value });
         } else {
             setDisableCreateButton(true);
         }
@@ -320,7 +351,7 @@ const ListProducts = () => {
     const fieldValidate = (name, value) => {
         let invalid = false;
         const fieldRules = validationRules[name];
-        if(!fieldRules) return true;
+        if (!fieldRules) return true;
         for (let index = 0; index < fieldRules.length; index++) {
             const rule = fieldRules[index];
             const valid = rule.rule.test(value);
@@ -345,28 +376,96 @@ const ListProducts = () => {
         return !invalid;
     }
 
+    const setCurrentProductOnView = (record) => {
+        setCurrentProduct(record);
+        setIsList(false);
+    }
+
     return (
         <MainLayout>
-            <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
-                Create a new product
-            </Button>
-            <Table
-                columns={columns}
-                dataSource={products}
-                pagination={{
-                    pageSize: 50,
-                }}
-                scroll={{
-                    y: 800,
-                }}
-                rowKey={rowData => rowData.id}
-            />
+            {isList ?
+                <>
+                    <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
+                        Create a new product
+                    </Button>
+                    <Table
+                        className="list-products"
+                        columns={columns}
+                        dataSource={products}
+                        pagination={{
+                            pageSize: 50,
+                        }}
+                        scroll={{
+                            y: 800,
+                        }}
+                        rowKey={rowData => rowData.id}
+                    />
+                </>
+
+                :
+                <Form
+                    labelCol={{
+                        span: 2,
+                    }}
+                    wrapperCol={{
+                        span: 8,
+                    }}
+                    
+                    layout="horizontal"
+
+                >
+                    <Form.Item label="Product name">
+                        <Input defaultValue={currentProduct?.productName} />
+                    </Form.Item>
+                    <Form.Item label="Category">
+                        <Select
+                            defaultValue={currentProduct?.categoryId}
+                            showSearch
+                            optionFilterProp="children"
+                            filterOption={(input, option) => (option?.children.toLowerCase() ?? '').includes(input.toLowerCase())}
+                            filterSort={(optionA, optionB) =>
+                                (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
+                            }
+                        >
+                            {categories.map(cate => (
+                                <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                    <Form.Item label="Price">
+                        <Input defaultValue={currentProduct?.price} />
+                    </Form.Item>
+                    <Form.Item label="Description" >
+                        <Input.TextArea defaultValue={currentProduct?.description} rows={8} />
+                    </Form.Item>
+
+                    <Form.Item {...{
+                        wrapperCol: {
+                            offset: 4,
+                            span: 8,
+                        },
+                    }}>
+                        <Button type="primary" style={{ marginRight: 10 }}>Update</Button>
+                        <Button type="dashed" onClick={() => setIsList(true)}>Cancel</Button>
+                    </Form.Item>
+                </Form>
+
+            }
+
             <Modal
                 title="Create a new product"
                 centered
                 open={createOpen}
-                onOk={async () => { await handleCreateNew(); createForm.resetFields() }}
-                onCancel={() => { setCreateOpen(false); createForm.resetFields() }}
+                onOk={async () => {
+                    await handleCreateNew();
+                    createForm.resetFields();
+                }}
+                onCancel={() => {
+                    setCreateOpen(false);
+                    createForm.resetFields();
+                    setDisableCreateButton(true);
+                    setFormValidations(defaultValidations);
+                }}
                 width={800}
                 okButtonProps={{ disabled: createButton }}
                 estroyOnClose={true}
@@ -420,7 +519,6 @@ const ListProducts = () => {
                         </Modal>
                     </Col>
                 </Row>
-
                 <Form
                     form={createForm}
                     {...{
@@ -474,12 +572,16 @@ const ListProducts = () => {
                             ))}
                         </Select>
                     </Form.Item>
-                    <Form.Item name={['description']} label="Description">
-                        <Input.TextArea onChange={(event) => handleInputChange(event, "description")} />
+                    <Form.Item
+                        name={['description']}
+                        label="Description"
+                        hasFeedback
+                        validateStatus={formValidations.description.errorType}
+                        help={formValidations.description.help}
+                    >
+                        <Input.TextArea onChange={(event) => handleInputChange(event, "description")} rows={8} />
                     </Form.Item>
-
                 </Form>
-
             </Modal>
         </MainLayout>
     );
