@@ -3,7 +3,7 @@ import PATH from "../commons/path";
 
 const CategoryServices = {
     getAllCategories: () => {
-        const url = `${PATH.BASEURL}/category/getall`;
+        const url = `${PATH.BASEURL}/category/all`;
         return ApiCreator.get(url);
     },
     getCategory: (id) => {

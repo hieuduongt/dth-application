@@ -119,6 +119,7 @@ const ListProducts = () => {
     const [previewImage, setPreviewImage] = useState('');
     const [previewTitle, setPreviewTitle] = useState('');
     const [formValidations, setFormValidations] = useState(defaultValidations);
+    const [pagination, setPagination] = useState();
 
     const columns = [
         {
@@ -229,11 +230,17 @@ const ListProducts = () => {
         }
     }, [product, currentProduct]);
 
-    const getAllProducts = async () => {
-        const res = await ProductServices.getAllProducts();
+    const getAllProducts = async (search, page, pageSize) => {
+        const res = await ProductServices.getAllProducts(search, page, pageSize);
         if (res.status === 200) {
-            if (res.data.results.length) {
-                setProducts(res.data.results);
+            if (res.data.isSuccess) {
+                setProducts(res.data.result.results);
+                const pagination = {
+                    page: res.data.result.currentPage,
+                    pageSize: res.data.result.pageSize,
+                    total: res.data.result.totalRecords
+                };
+                setPagination(pagination);
             }
         }
     }
@@ -241,7 +248,7 @@ const ListProducts = () => {
     const getAllCategories = async () => {
         const res = await CategoryServices.getAllCategories();
         if (res.status === 200) {
-            if (res.data.results.length) {
+            if (res.data.isSuccess) {
                 setCategories(res.data.results);
             }
         }
@@ -475,7 +482,17 @@ const ListProducts = () => {
                 columns={columns}
                 dataSource={products}
                 pagination={{
-                    pageSize: 50,
+                    pageSizeOptions: ["3", "6", "12", "24", "48"],
+                    pageSize: pagination?.pageSize,
+                    current: pagination?.page,
+                    total: pagination?.total,
+                    showSizeChanger: true,
+                    onChange: async (page, pageSize) => {
+                        await getAllProducts("", page, pageSize);
+                    },
+                    onShowSizeChange: async (current, pageSize) => {
+                        await getAllProducts("", current, pageSize);
+                    }
                 }}
                 scroll={{
                     y: 800,

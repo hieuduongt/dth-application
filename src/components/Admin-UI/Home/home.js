@@ -1,11 +1,11 @@
 import {React} from 'react';
-import MainLayout from '../../../layouts/AdminLayout';
+import AdminLayout from '../../../layouts/AdminLayout';
 
 const Home = () => {
     return (
-        <MainLayout>
+        <AdminLayout>
             <div>Hello world</div>
-        </MainLayout>
+        </AdminLayout>
     );
 }
 

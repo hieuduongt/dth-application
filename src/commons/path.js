@@ -8,7 +8,7 @@ const PATH = {
     },
     USER: {
         HOME: "/",
-        LIST_PRODUCTS: "/list-products",
+        LIST_PRODUCTS: "/:id",
         PRODUCT_DETAIL: "/product/:id",
         LIST_CATEGORIES: "/list-categories",
         CATEGORY: "/category/:id",

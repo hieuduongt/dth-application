@@ -41,7 +41,7 @@ const listItems = [
     }
 ]
 
-const MainLayout = (props) => {
+const AdminLayout = (props) => {
     const { children } = props;
     const [collapsed, setCollapsed] = useState(false);
     const {
@@ -131,4 +131,4 @@ const MainLayout = (props) => {
         </Layout>
     );
 };
-export default MainLayout;
+export default AdminLayout;

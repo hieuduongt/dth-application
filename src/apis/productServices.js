@@ -3,8 +3,19 @@ import FileUploader from "./fileApiCreator";
 import PATH from "../commons/path";
 
 const ProductServices = {
-    getAllProducts: () => {
-        const url = `${PATH.BASEURL}/product/getall`;
+    getAllProducts: (search, page, pageSize) => {
+        let url = `${PATH.BASEURL}/product/all`;
+        if(search) {
+            url = `${url}?search=${search}`;
+        }
+        if(page && url.includes("?")) {
+            url = `${url}&page=${page}`;
+        } else if(page) {
+            url = `${url}?page=${page}`;
+        }
+        if(pageSize) {
+            url = `${url}&pageSize=${pageSize}`;
+        }
         return ApiCreator.get(url);
     },
     getProduct: (id) => {
@@ -23,16 +34,27 @@ const ProductServices = {
         const url = `${PATH.BASEURL}/product/${id}`
         return ApiCreator.delete(url);
     },
-    getAllProductsByCategory: (id) => {
-        const url = `${PATH.BASEURL}/product/getallbycategory`
-        return ApiCreator.get(url, id);
+    getAllProductsByCategory: (id, search, page, pageSize) => {
+        let url = `${PATH.BASEURL}/product/category/${id}`;
+        if(search) {
+            url = `${url}?search=${search}`;
+        }
+        if(page && url.includes("?")) {
+            url = `${url}&page=${page}`;
+        } else if(page) {
+            url = `${url}?page=${page}`;
+        }
+        if(pageSize) {
+            url = `${url}&pageSize=${pageSize}`;
+        }
+        return ApiCreator.get(url);
     },
     uploadFile: (data) => {
         const url = `${PATH.BASEURL}/file/upload`
         return FileUploader.post(url, data);
     },
     uploadFiles: (data) => {
-        const url = `${PATH.BASEURL}/file/upload-many`
+        const url = `${PATH.BASEURL}/file/upload-multiple`
         return FileUploader.post(url, data);
     }
 };
