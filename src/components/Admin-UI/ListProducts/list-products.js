@@ -22,7 +22,8 @@ import {
     ExclamationCircleFilled,
     FileAddOutlined,
     EyeOutlined,
-    PlusOutlined
+    PlusOutlined,
+    CheckOutlined
 } from '@ant-design/icons';
 import ProductServices from '../../../apis/productServices';
 import CategoryServices from '../../../apis/categoryServices';
@@ -261,6 +262,7 @@ const ListProducts = () => {
             fileList.forEach((file) => {
                 formData.append('files', file.originFileObj);
             });
+            
             message.info("Uploading Images...");
             const uploadedImages = await ProductServices.uploadFiles(formData);
             if (uploadedImages.status === 200) {
@@ -298,6 +300,9 @@ const ListProducts = () => {
         setIsUpdating(true);
         let uploadedImages = updateFileList.filter(file => file.uploadedImage);
         uploadedImages = uploadedImages.map(ui => ui.uploadedImage);
+        if(uploadedImages[0]) {
+            uploadedImages[0].isMainImage = true;
+        }
         let notYetUploadedImages = updateFileList.filter(file => !file.uploadedImage);
         if (notYetUploadedImages && notYetUploadedImages.length) {
             notYetUploadedImages = notYetUploadedImages.map(ni => ni.originFileObj);
@@ -310,7 +315,11 @@ const ListProducts = () => {
             const newUploadedImages = await ProductServices.uploadFiles(formData);
             if (newUploadedImages.status === 200) {
                 if (newUploadedImages.data.results && newUploadedImages.data.results.length) {
-                    uploadedImages = uploadedImages.concat(newUploadedImages.data.results);
+                    const justUploadedImages = newUploadedImages.data.results;
+                    if(uploadedImages.length) {
+                        justUploadedImages.forEach(ji => ji.isMainImage = false);
+                    }
+                    uploadedImages = uploadedImages.concat(justUploadedImages);
                     uploadedImages.forEach(ui => ui.productId = currentProduct.id);
                     message.success(`Uploaded ${newUploadedImages.data.results.length} Images`);
                 }
@@ -482,7 +491,7 @@ const ListProducts = () => {
                 columns={columns}
                 dataSource={products}
                 pagination={{
-                    pageSizeOptions: ["3", "6", "12", "24", "48"],
+                    pageSizeOptions: ["12", "24", "48"],
                     pageSize: pagination?.pageSize,
                     current: pagination?.page,
                     total: pagination?.total,
@@ -526,10 +535,21 @@ const ListProducts = () => {
                     </Col>
                     <Col className="gutter-row" span={21}>
                         <Upload
+                            itemRender={(node, file, fileList) => {
+                                return file === fileList[0]
+                                    ? <div className="is-main-image">
+                                        <CheckOutlined />
+                                        {node}
+                                    </div>
+                                    : node;
+                            }}
                             listType="picture-card"
                             fileList={fileList}
                             onPreview={handleImagePreview}
                             onChange={handleImagesChange}
+                            onDownload={(file) => {
+                                console.log(file)
+                            }}
                             multiple
                             maxCount={5}
                             beforeUpload={(file) => {
@@ -660,6 +680,27 @@ const ListProducts = () => {
                         <Upload
                             listType="picture-card"
                             fileList={updateFileList}
+                            itemRender={(node, file, fileList) => {
+                                const mainImage = fileList.find(fl => fl.uploadedImage && fl.uploadedImage.isMainImage === true);
+                                if (mainImage) {
+                                    if(file === mainImage) {
+                                        return <div className="is-main-image">
+                                        <CheckOutlined />
+                                        {node}
+                                        </div>
+                                    } else {
+                                        return node;
+                                    }
+                                    
+                                } else if (file === fileList[0]) {
+                                    return <div className="is-main-image">
+                                        <CheckOutlined />
+                                        {node}
+                                    </div>
+                                } else {
+                                    return node;
+                                }
+                            }}
                             onPreview={handleImagePreview}
                             onChange={handleUpdateImagesChange}
                             multiple
