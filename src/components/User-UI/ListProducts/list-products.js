@@ -3,7 +3,7 @@ import UserLayout from "../../../layouts/UserLayout";
 
 const ListProducts = () => {
     return(
-        <UserLayout>hehe</UserLayout>
+        <UserLayout>list products</UserLayout>
     );
 }
 

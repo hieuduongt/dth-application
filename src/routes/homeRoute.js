@@ -9,6 +9,8 @@ function HomeRoute() {
         <Switch>
             <Route exact path={PATH.ADMIN.HOME} component={AdminHomePage} />
             <Route exact path={PATH.USER.HOME} component={UserHomePage} />
+            <Route exact path={PATH.USER.CATEGORY_PRODUCTS} component={UserHomePage} />
+            
         </Switch>
     );
 }

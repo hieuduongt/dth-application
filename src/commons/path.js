@@ -8,10 +8,10 @@ const PATH = {
     },
     USER: {
         HOME: "/",
-        LIST_PRODUCTS: "/:id",
+        CATEGORY_PRODUCTS: "/:id",
+        LIST_PRODUCTS: "category/:id",
         PRODUCT_DETAIL: "/product/:id",
         LIST_CATEGORIES: "/list-categories",
-        CATEGORY: "/category/:id",
     },
     BASEURL: "https://localhost:7023/api",
     IMAGEBASEURL: "https://localhost:7023"

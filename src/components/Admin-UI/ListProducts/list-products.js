@@ -28,6 +28,16 @@ import {
 import ProductServices from '../../../apis/productServices';
 import CategoryServices from '../../../apis/categoryServices';
 import PATH from "../../../commons/path";
+import { DndContext, PointerSensor, useSensor } from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { css } from '@emotion/css';
+
 const { confirm } = Modal;
 const { Option } = Select;
 const { Meta } = Card;
@@ -98,6 +108,34 @@ const validationRules = {
     ]
 };
 
+const DraggableUploadListItem = ({ originNode, file }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: file.uid,
+    });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        cursor: 'move',
+        with: "100%",
+        height: "100%"
+    };
+
+    // prevent preview event when drag end
+    const className = isDragging
+        ? css`
+          a {
+            pointer-events: none;
+          }
+        `
+        : '';
+    return (
+        <div ref={setNodeRef} style={style} className={className} {...attributes} {...listeners}>
+            {/* hide error tooltip when dragging */}
+            {file.status === 'error' && isDragging ? originNode.props.children : originNode}
+        </div>
+    );
+};
+
 const ListProducts = () => {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -125,9 +163,10 @@ const ListProducts = () => {
     const columns = [
         {
             render: (text, record, index) => (<Avatar src={
-                record.imageURLs.find(i => i.isMainImage).url.includes("http") ?
+                record.imageURLs && record.imageURLs.length ? record.imageURLs.find(i => i.isMainImage).url.includes("http") ?
                     record.imageURLs.find(i => i.isMainImage).url :
                     `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
+                    : ""
             } />),
             title: 'Image',
             dataIndex: 'imageURL',
@@ -159,9 +198,10 @@ const ListProducts = () => {
                 <Popover content={(
                     <Card
                         cover={<img width="200px" height="200px" alt="example" src={
-                            record.imageURLs.find(i => i.isMainImage).url.includes("https") ?
+                            record.imageURLs && record.imageURLs.length ? record.imageURLs.find(i => i.isMainImage).url.includes("http") ?
                                 record.imageURLs.find(i => i.isMainImage).url :
                                 `${PATH.IMAGEBASEURL}${record.imageURLs.find(i => i.isMainImage).url}`
+                                : ""
                         } />}
                         style={{
                             width: "200px",
@@ -211,6 +251,32 @@ const ListProducts = () => {
             width: 150,
         },
     ];
+
+    const sensor = useSensor(PointerSensor, {
+        activationConstraint: {
+            distance: 10,
+        },
+    });
+
+    const onDragEnd = ({ active, over }) => {
+        if (active.id !== over?.id) {
+            setFileList((prev) => {
+                const activeIndex = prev.findIndex((i) => i.uid === active.id);
+                const overIndex = prev.findIndex((i) => i.uid === over?.id);
+                return arrayMove(prev, activeIndex, overIndex);
+            });
+        }
+    };
+
+    const onDragEndWhenUpdateProduct = ({ active, over }) => {
+        if (active.id !== over?.id) {
+            setUpdateFileList((prev) => {
+                const activeIndex = prev.findIndex((i) => i.uid === active.id);
+                const overIndex = prev.findIndex((i) => i.uid === over?.id);
+                return arrayMove(prev, activeIndex, overIndex);
+            });
+        }
+    };
 
     const numberFormater = (number) => {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(number);
@@ -262,7 +328,7 @@ const ListProducts = () => {
             fileList.forEach((file) => {
                 formData.append('files', file.originFileObj);
             });
-            
+
             message.info("Uploading Images...");
             const uploadedImages = await ProductServices.uploadFiles(formData);
             if (uploadedImages.status === 200) {
@@ -298,37 +364,28 @@ const ListProducts = () => {
 
     const handleUpdateProduct = async () => {
         setIsUpdating(true);
-        let uploadedImages = updateFileList.filter(file => file.uploadedImage);
-        uploadedImages = uploadedImages.map(ui => ui.uploadedImage);
-        if(uploadedImages[0]) {
-            uploadedImages[0].isMainImage = true;
-        }
-        let notYetUploadedImages = updateFileList.filter(file => !file.uploadedImage);
-        if (notYetUploadedImages && notYetUploadedImages.length) {
-            notYetUploadedImages = notYetUploadedImages.map(ni => ni.originFileObj);
-
-            const formData = new FormData();
-            notYetUploadedImages.forEach((file) => {
-                formData.append('files', file);
-            });
-            message.info("Uploading Images...");
-            const newUploadedImages = await ProductServices.uploadFiles(formData);
-            if (newUploadedImages.status === 200) {
-                if (newUploadedImages.data.results && newUploadedImages.data.results.length) {
-                    const justUploadedImages = newUploadedImages.data.results;
-                    if(uploadedImages.length) {
-                        justUploadedImages.forEach(ji => ji.isMainImage = false);
-                    }
-                    uploadedImages = uploadedImages.concat(justUploadedImages);
-                    uploadedImages.forEach(ui => ui.productId = currentProduct.id);
-                    message.success(`Uploaded ${newUploadedImages.data.results.length} Images`);
-                }
+        const newImageURLs = [];
+        for (let index = 0; index < updateFileList.length; index++) {
+            const image = updateFileList[index];
+            if(image.uploadedImage) {
+                newImageURLs.push(image.uploadedImage);
             } else {
-                message.error(`Cannot upload ${updateFileList.length} Images`);
-                return;
+                const formData = new FormData();
+                formData.append('file', image.originFileObj);
+                message.info(`Uploading Image: ${image.originFileObj.name}`);
+                const res = await ProductServices.uploadFile(formData);
+                if(res.status === 200) {
+                    message.success(`Uploaded Image: ${image.originFileObj.name}`);
+                    newImageURLs.push(res.data.result);
+                } else {
+                    message.error(`Cannot upload ${image.originFileObj.name} Images`);
+                }
             }
         }
-        currentProduct.imageURLs = uploadedImages;
+
+        newImageURLs.forEach(ni => ni.isMainImage = false);
+        newImageURLs[0].isMainImage = true;
+        currentProduct.imageURLs = newImageURLs;
 
         message.info("Updating product...");
         const res = await ProductServices.updateProduct(currentProduct);
@@ -353,6 +410,15 @@ const ListProducts = () => {
     }
 
     const handleClickUpdate = (record) => {
+        record.imageURLs.sort((a, b) => {
+            if (a.isMainImage < b.isMainImage) {
+                return 1;
+            }
+            if (a.isMainImage > b.isMainImage) {
+                return -1;
+            }
+            return 0;
+        })
         setCurrentProduct(record);
         updateForm.setFieldsValue(record);
         const images = record.imageURLs.map((img, index) => {
@@ -523,6 +589,7 @@ const ListProducts = () => {
                     createForm.resetFields();
                     setDisableCreateButton(true);
                     setFormValidations(defaultValidations);
+                    setFileList([]);
                 }}
                 width={800}
                 okButtonProps={{ disabled: createButton }}
@@ -534,49 +601,50 @@ const ListProducts = () => {
                         Images:
                     </Col>
                     <Col className="gutter-row" span={21}>
-                        <Upload
-                            itemRender={(node, file, fileList) => {
-                                return file === fileList[0]
-                                    ? <div className="is-main-image">
-                                        <CheckOutlined />
-                                        {node}
-                                    </div>
-                                    : node;
-                            }}
-                            listType="picture-card"
-                            fileList={fileList}
-                            onPreview={handleImagePreview}
-                            onChange={handleImagesChange}
-                            onDownload={(file) => {
-                                console.log(file)
-                            }}
-                            multiple
-                            maxCount={5}
-                            beforeUpload={(file) => {
-                                setFileList(fileList => [...fileList, file]);
-                                return false;
-                            }
-                            }
-                            onRemove={(file) => {
-                                const index = fileList.indexOf(file);
-                                const newFileList = fileList.slice();
-                                newFileList.splice(index, 1);
-                                setFileList(newFileList);
-                            }
-                            }
-                        >
-                            {fileList.length >= 5 ? null :
-                                <div>
-                                    <PlusOutlined />
-                                    <div
-                                        style={{
-                                            marginTop: 8,
-                                        }}
-                                    >
-                                        Upload(max: 5 images)
-                                    </div>
-                                </div>}
-                        </Upload>
+                        <DndContext sensors={[sensor]} onDragEnd={onDragEnd}>
+                            <SortableContext items={fileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
+                                <Upload
+                                    itemRender={(node, file, fileList) => {
+                                        return file === fileList[0]
+                                            ? <div className="is-main-image">
+                                                <CheckOutlined />
+                                                <DraggableUploadListItem originNode={node} file={file} />
+                                            </div>
+                                            : <DraggableUploadListItem originNode={node} file={file} />;
+                                    }}
+                                    listType="picture-card"
+                                    fileList={fileList}
+                                    onPreview={handleImagePreview}
+                                    onChange={handleImagesChange}
+                                    multiple
+                                    maxCount={5}
+                                    beforeUpload={(file) => {
+                                        setFileList(fileList => [...fileList, file]);
+                                        return false;
+                                    }
+                                    }
+                                    onRemove={(file) => {
+                                        const index = fileList.indexOf(file);
+                                        const newFileList = fileList.slice();
+                                        newFileList.splice(index, 1);
+                                        setFileList(newFileList);
+                                    }
+                                    }
+                                >
+                                    {fileList.length >= 5 ? null :
+                                        <div>
+                                            <PlusOutlined />
+                                            <div
+                                                style={{
+                                                    marginTop: 8,
+                                                }}
+                                            >
+                                                Upload(max: 5 images)
+                                            </div>
+                                        </div>}
+                                </Upload>
+                            </SortableContext>
+                        </DndContext>
                         <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
                             <img
                                 alt="example"
@@ -677,59 +745,69 @@ const ListProducts = () => {
                         Images:
                     </Col>
                     <Col className="gutter-row" span={21}>
-                        <Upload
-                            listType="picture-card"
-                            fileList={updateFileList}
-                            itemRender={(node, file, fileList) => {
-                                const mainImage = fileList.find(fl => fl.uploadedImage && fl.uploadedImage.isMainImage === true);
-                                if (mainImage) {
-                                    if(file === mainImage) {
-                                        return <div className="is-main-image">
-                                        <CheckOutlined />
-                                        {node}
-                                        </div>
-                                    } else {
-                                        return node;
+                        <DndContext sensors={[sensor]} onDragEnd={onDragEndWhenUpdateProduct}>
+                            <SortableContext items={updateFileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
+                                <Upload
+                                    listType="picture-card"
+                                    fileList={updateFileList}
+                                    itemRender={(node, file, fileList) => {
+                                        // const mainImage = fileList.find(fl => fl.uploadedImage && fl.uploadedImage.isMainImage === true);
+                                        // if (mainImage) {
+                                        //     if (file === mainImage) {
+                                        //         return <div className="is-main-image">
+                                        //             <CheckOutlined />
+                                        //             <DraggableUploadListItem originNode={node} file={file} />
+                                        //         </div>
+                                        //     } else {
+                                        //         return <DraggableUploadListItem originNode={node} file={file} />;
+                                        //     }
+
+                                        // } else if (file === fileList[0]) {
+                                        //     return <div className="is-main-image">
+                                        //         <CheckOutlined />
+                                        //         <DraggableUploadListItem originNode={node} file={file} />
+                                        //     </div>
+                                        // } else {
+                                        //     return <DraggableUploadListItem originNode={node} file={file} />;
+                                        // }
+                                        return file === fileList[0]
+                                            ? <div className="is-main-image">
+                                                <CheckOutlined />
+                                                <DraggableUploadListItem originNode={node} file={file} />
+                                            </div>
+                                            : <DraggableUploadListItem originNode={node} file={file} />;
+                                    }}
+                                    onPreview={handleImagePreview}
+                                    onChange={handleUpdateImagesChange}
+                                    multiple
+                                    maxCount={5}
+                                    beforeUpload={(file) => {
+                                        setUpdateFileList(fileList => [...fileList, file]);
+                                        return false;
                                     }
-                                    
-                                } else if (file === fileList[0]) {
-                                    return <div className="is-main-image">
-                                        <CheckOutlined />
-                                        {node}
-                                    </div>
-                                } else {
-                                    return node;
-                                }
-                            }}
-                            onPreview={handleImagePreview}
-                            onChange={handleUpdateImagesChange}
-                            multiple
-                            maxCount={5}
-                            beforeUpload={(file) => {
-                                setUpdateFileList(fileList => [...fileList, file]);
-                                return false;
-                            }
-                            }
-                            onRemove={(file) => {
-                                const index = updateFileList.indexOf(file);
-                                const newFileList = updateFileList.slice();
-                                newFileList.splice(index, 1);
-                                setUpdateFileList(newFileList);
-                            }
-                            }
-                        >
-                            {updateFileList.length >= 5 ? null :
-                                <div>
-                                    <PlusOutlined />
-                                    <div
-                                        style={{
-                                            marginTop: 8,
-                                        }}
-                                    >
-                                        Upload(max: 5 images)
-                                    </div>
-                                </div>}
-                        </Upload>
+                                    }
+                                    onRemove={(file) => {
+                                        const index = updateFileList.indexOf(file);
+                                        const newFileList = updateFileList.slice();
+                                        newFileList.splice(index, 1);
+                                        setUpdateFileList(newFileList);
+                                    }
+                                    }
+                                >
+                                    {updateFileList.length >= 5 ? null :
+                                        <div>
+                                            <PlusOutlined />
+                                            <div
+                                                style={{
+                                                    marginTop: 8,
+                                                }}
+                                            >
+                                                Upload(max: 5 images)
+                                            </div>
+                                        </div>}
+                                </Upload>
+                            </SortableContext>
+                        </DndContext>
                         <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
                             <img
                                 alt="example"

@@ -13,6 +13,7 @@ function getItem(label, key, icon, children) {
         label,
     };
 }
+
 const items = [
     getItem((<NavLink exact to={PATH.ADMIN.HOME}> Dashboard</NavLink>), 'home', <DesktopOutlined />),
     getItem("Category", 'catesub', <ContainerFilled />, [

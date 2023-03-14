@@ -2,7 +2,7 @@ import React from "react";
 
 const ListCategories = () => {
     return(
-        <>hehe</>
+        <>ccc</>
     );
 }
 

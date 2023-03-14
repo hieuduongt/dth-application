@@ -12,7 +12,6 @@ function HomeRoute() {
             <Route exact path={PATH.ADMIN.LIST_CATEGORIES} component={AdminCategoryListPage} />
             <Route exact path={PATH.ADMIN.CATEGORY} component={AdminCategoryDetailPage} />
             <Route exact path={PATH.USER.LIST_CATEGORIES} component={UserCategoryListPage} />
-            <Route exact path={PATH.USER.CATEGORY} component={UserCategoryDetailPage} />
         </Switch>
     );
 }
