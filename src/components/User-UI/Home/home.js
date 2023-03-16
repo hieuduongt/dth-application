@@ -1,9 +1,9 @@
 import { React, useEffect, useState } from 'react';
 import UserLayout from '../../../layouts/UserLayout';
-import { Col, Row, Pagination, Card } from 'antd';
+import { Col, Row, Pagination, Card, Button } from 'antd';
 import { useLocation } from 'react-router-dom';
 import ProductServices from '../../../apis/productServices';
-import { EditOutlined, EllipsisOutlined, SettingOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import PATH from '../../../commons/path';
 import './home.css'
 import CategoryServices from '../../../apis/categoryServices';
@@ -91,12 +91,11 @@ const Home = () => {
                                 }
                                 bordered={false}
                                 actions={[
-                                    <SettingOutlined key="setting" />,
-                                    <EditOutlined key="edit" />,
-                                    <EllipsisOutlined key="ellipsis" />,
+                                    <Button danger type="link" icon={<CheckCircleOutlined />}>Buy</Button>,
+                                    <Button type="link" icon={<ShoppingCartOutlined />}>Add to cart</Button>
                                 ]}
                                 style={{
-                                    height: "575px"
+                                    height: "540px"
                                 }}
                             >
                                 <Meta

@@ -1,8 +1,9 @@
-import { Breadcrumb, Layout, Menu, theme } from 'antd';
-import { FileOutlined, DesktopOutlined, ContainerFilled, ProfileFilled } from '@ant-design/icons';
+import { Breadcrumb, Layout, Menu, theme, Button, Badge } from 'antd';
+import { ShoppingCartOutlined, DesktopOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import CategoryServices from '../apis/categoryServices';
+import './userLayout.css';
 const { Header, Content, Footer } = Layout;
 
 function getItem(label, key, icon, children) {
@@ -29,7 +30,7 @@ const UserLayout = (props) => {
             setCategories(res.data.results.map(cate => getItem((<NavLink exact to={`/${cate.url}`}>{cate.categoryName}</NavLink>), cate.id, <DesktopOutlined />)));
             const pathName = location.pathname.replace("/", "");
             const currentCate = res.data.results.find(c => c.url == pathName);
-            setCurrentCategory(currentCate?currentCate:"");
+            setCurrentCategory(currentCate ? currentCate : "");
         }
     }
 
@@ -48,6 +49,12 @@ const UserLayout = (props) => {
                     selectedKeys={currentCategory?.id}
                     items={categories}
                 />
+                <div className="cart" >
+                    <Badge count={1}>
+                        <Button type="default" size={"large"} icon={<ShoppingCartOutlined />} />
+                    </Badge>
+                </div>
+
             </Header>
             <Content
                 style={{
@@ -60,7 +67,7 @@ const UserLayout = (props) => {
                     }}
                 >
                     <Breadcrumb.Item>Home</Breadcrumb.Item>
-                    <Breadcrumb.Item>{currentCategory? currentCategory.categoryName: "All Products"}</Breadcrumb.Item>
+                    <Breadcrumb.Item>{currentCategory ? currentCategory.categoryName : "All Products"}</Breadcrumb.Item>
                     {currentCategory ? <Breadcrumb.Item>All Products</Breadcrumb.Item> : <></>}
                 </Breadcrumb>
                 <div
