@@ -16,9 +16,14 @@ const ListCategory = () => {
     const [listCategories, setListCategories] = useState([]);
     const [loadings, setLoadings] = useState([]);
     const [category, setCategory] = useState();
+    const [updateCategory, setUpdateCategory] = useState();
     const [createOpen, setCreateOpen] = useState(false);
+    const [updateOpen, setUpdateOpen] = useState(false);
     const [createValid, setCreateValid] = useState(false);
+    const [updateValid, setUpdateValid] = useState(false);
     const [createForm] = Form.useForm();
+    const [updateForm] = Form.useForm();
+
     const getAllCategories = async () => {
         const res = await CategoryServices.getAllCategories();
         if (res.status === 200) {
@@ -46,6 +51,7 @@ const ListCategory = () => {
             okType: 'danger',
             cancelText: 'No',
             onOk() {
+                onDeleteCategory(id);
                 setLoadings((prevLoadings) => {
                     const newLoadings = [...prevLoadings];
                     newLoadings[index] = false;
@@ -76,6 +82,32 @@ const ListCategory = () => {
         }
     }
 
+    const onDeleteCategory = async (id) => {
+        const res = await CategoryServices.deleteCategory(id);
+        if(res.status === 200) {
+            if(res.data.isSuccess) {
+                message.success("Deleted category!");
+                await getAllCategories();
+            } else {
+                message.error("Error when deleting category: " + res.data.message);
+            }
+        }
+    }
+
+    const onUpdateCategory = async () => {
+        const res = await CategoryServices.updateCategory(updateForm.getFieldsValue());
+        if(res.status === 200) {
+            if(res.data.isSuccess) {
+                message.success("Updated new category!");
+                setUpdateOpen(false);
+                updateForm.resetFields();
+                await getAllCategories();
+            } else {
+                message.error("Error when updating category: " + res.data.message);
+            }
+        }
+    }
+
     const handleInputCreateChange = (event) => {
         createForm
             .validateFields()
@@ -85,6 +117,17 @@ const ListCategory = () => {
             })
             .catch((info) => {
                 setCreateValid(false);
+            });
+    }
+
+    const handleInputUpdateChange = (event) => {
+        updateForm
+            .validateFields()
+            .then((values) => {
+                setUpdateValid(true);
+            })
+            .catch((info) => {
+                setUpdateValid(false);
             });
     }
 
@@ -113,7 +156,10 @@ const ListCategory = () => {
                         <Button
                             type="text"
                             icon={<EditOutlined />}
-                            onClick={() => { }}
+                            onClick={() => {
+                                updateForm.setFieldsValue(item);
+                                setUpdateOpen(true);
+                            }}
                         />,
                         <Button
                             type="text"
@@ -214,6 +260,54 @@ const ListCategory = () => {
                         ]}
                     >
                         <Input onChange={handleInputCreateChange} />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            <Modal
+                open={updateOpen}
+                title="Update a category"
+                okText="Update"
+                okButtonProps={{ disabled: !updateValid }}
+                cancelText="Cancel"
+                onCancel={() => {
+                    setUpdateOpen(false);
+                    updateForm.resetFields();
+                    setUpdateValid(false);
+                }}
+                onOk={() => onUpdateCategory()}
+            >
+                <Form
+                    form={updateForm}
+                    layout="vertical"
+                    name="form_in_modal"
+                >
+                    <Form.Item name="id" hidden>
+                        <Input hidden />
+                    </Form.Item>
+                    <Form.Item
+                        name="categoryName"
+                        label="Category Name"
+                        rules={[
+                            {
+                                required: true,
+                                message: 'Please input the category name!',
+                            },
+                        ]}
+                    >
+                        <Input onChange={handleInputUpdateChange} />
+                    </Form.Item>
+                    <Form.Item
+                        name="url"
+                        label="URL"
+                        rules={[
+                            {
+                                required: true,
+                                message: 'Please input the category url!',
+                            },
+                        ]}
+                    >
+                        <Input onChange={handleInputUpdateChange} />
                     </Form.Item>
                 </Form>
             </Modal>
