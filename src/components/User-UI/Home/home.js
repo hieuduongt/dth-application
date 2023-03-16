@@ -12,6 +12,7 @@ const { Meta } = Card;
 const Home = () => {
     const location = useLocation();
     const [products, setProducts] = useState();
+    const [inCartItems, setInCartItems] = useState(0);
 
     const getAllProducts = async (search, page, pageSize) => {
         const categories = await CategoryServices.getAllCategories();
@@ -35,6 +36,11 @@ const Home = () => {
 
     useEffect(() => {
         getAllProducts();
+        const itemsInCart = localStorage.getItem("inCartItems");
+        if(itemsInCart) {
+            const jsonParsed = JSON.parse(itemsInCart);
+            setInCartItems(jsonParsed.length);
+        }
     }, [location.pathname]);
 
     const numberFormater = (number) => {
@@ -45,8 +51,41 @@ const Home = () => {
         await getAllProducts("", pageNumber, pageSize);
     };
 
+    const onAddToCart = (item) => {
+        const itemsInCart = localStorage.getItem("inCartItems");
+        if(itemsInCart && itemsInCart.length) {
+            try {
+                const jsonParsed = JSON.parse(itemsInCart);
+                jsonParsed.push(item.id);
+                localStorage.setItem("inCartItems", JSON.stringify(jsonParsed));
+            } catch (ignored) {
+                localStorage.removeItem("inCartItems");
+                localStorage.setItem("inCartItems", JSON.stringify([item.id]));
+            }
+            
+        } else {
+            localStorage.setItem("inCartItems", JSON.stringify([item.id]));
+        }
+        setInCartItems(inCartItems+1);
+    }
+
+    const onCheckItemInCart = (item) => {
+        const itemsInCart = localStorage.getItem("inCartItems");
+        if(itemsInCart) {
+            try {
+                const jsonParsed = JSON.parse(itemsInCart);
+                const itm = jsonParsed.find(i => i === item.id);
+                return itm ? true : false;
+            } catch (ignored) {
+                return false;
+            }
+        } else {
+            return false
+        }
+    }
+
     return (
-        <UserLayout>
+        <UserLayout inCartItems={inCartItems}>
             <div style={{ width: "100%", height: "100%", padding:"16px"}}>
                 <Row wrap gutter={[{ xs: 8, sm: 16, md: 24, lg: 32 }, { xs: 8, sm: 16, md: 24, lg: 32 }]}>
                     {products?.results.map(product => (
@@ -91,15 +130,14 @@ const Home = () => {
                                 }
                                 bordered={false}
                                 actions={[
-                                    <Button danger type="link" icon={<CheckCircleOutlined />}>Buy</Button>,
-                                    <Button type="link" icon={<ShoppingCartOutlined />}>Add to cart</Button>
+                                    <Button danger type="link"  icon={<CheckCircleOutlined />}>Buy</Button>,
+                                    <Button type="link" onClick={() => onAddToCart(product)} disabled={onCheckItemInCart(product)} icon={<ShoppingCartOutlined />}>{onCheckItemInCart(product) ? "Added to cart" : "Add to cart"}</Button>
                                 ]}
                                 style={{
                                     height: "540px"
                                 }}
                             >
                                 <Meta
-                                    // avatar={<Avatar src="https://joesch.moe/api/v1/random" />}
                                     title={product.productName}
                                     description={(
                                         <>
