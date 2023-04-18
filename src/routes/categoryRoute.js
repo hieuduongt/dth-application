@@ -2,7 +2,6 @@ import React from 'react';
 import { Switch, Route } from 'react-router-dom';
 import AdminCategoryListPage from '../components/Admin-UI/ListCategories/list-categories';
 import AdminCategoryDetailPage from '../components/Admin-UI/Category/category';
-import UserCategoryDetailPage from '../components/User-UI/ListCategories/list-categories';
 import UserCategoryListPage from '../components/Admin-UI/Category/category';
 import PATH from '../commons/path';
 

@@ -42,20 +42,16 @@ const { confirm } = Modal;
 const { Option } = Select;
 const { Meta } = Card;
 
-const defaultProduct = {
-    productName: "",
-    price: 0,
-    imageURLs: [],
-    description: "",
-    categoryId: ""
-};
-
 const defaultValidations = {
     productName: {
         errorType: "",
         help: ""
     },
     price: {
+        errorType: "",
+        help: ""
+    },
+    quantity: {
         errorType: "",
         help: ""
     },
@@ -92,6 +88,20 @@ const validationRules = {
         {
             rule: /^\d{0,10}$/i,
             message: "Price must be in range from 0 -> 9999999999"
+        }
+    ],
+    quantity: [
+        {
+            rule: /.+/i,
+            message: "Quantity is required"
+        },
+        {
+            rule: /^[0-9]+$/i,
+            message: "Quantity must be a number"
+        },
+        {
+            rule: /^\d{0,4}$/i,
+            message: "Quantity must be in range from 0 -> 9999"
         }
     ],
     categoryId: [
@@ -139,21 +149,16 @@ const DraggableUploadListItem = ({ originNode, file }) => {
 const ListProducts = () => {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [createButton, setDisableCreateButton] = useState(true);
-    const [updateButton, setDisableUpdateButton] = useState(true);
-    const [product, setProduct] = useState(defaultProduct);
+    const [okButton, setDisableOkButton] = useState(true);
 
-    const [currentProduct, setCurrentProduct] = useState(defaultProduct);
-    const [updateForm] = Form.useForm();
-    const [updateOpen, setUpdateOpen] = useState(false);
+    const [form] = Form.useForm();
+    const [openModal, setOpenModal] = useState(false);
 
     const [loadings, setLoadings] = useState([]);
-    const [isCreating, setIsCreating] = useState(false);
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [createOpen, setCreateOpen] = useState(false);
-    const [createForm] = Form.useForm();
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCreating, setIsCreating] = useState(true);
+
     const [fileList, setFileList] = useState([]);
-    const [updateFileList, setUpdateFileList] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState('');
     const [previewTitle, setPreviewTitle] = useState('');
@@ -258,19 +263,9 @@ const ListProducts = () => {
         },
     });
 
-    const onDragEnd = ({ active, over }) => {
+    const onImageDragEnd = ({ active, over }) => {
         if (active.id !== over?.id) {
             setFileList((prev) => {
-                const activeIndex = prev.findIndex((i) => i.uid === active.id);
-                const overIndex = prev.findIndex((i) => i.uid === over?.id);
-                return arrayMove(prev, activeIndex, overIndex);
-            });
-        }
-    };
-
-    const onDragEndWhenUpdateProduct = ({ active, over }) => {
-        if (active.id !== over?.id) {
-            setUpdateFileList((prev) => {
                 const activeIndex = prev.findIndex((i) => i.uid === active.id);
                 const overIndex = prev.findIndex((i) => i.uid === over?.id);
                 return arrayMove(prev, activeIndex, overIndex);
@@ -286,16 +281,6 @@ const ListProducts = () => {
         getAllProducts();
         getAllCategories();
     }, []);
-
-    useEffect(() => {
-        if (product.categoryId && product.price && product.productName) {
-            setDisableCreateButton(false);
-        }
-
-        if (currentProduct.categoryId && currentProduct.price && currentProduct.productName) {
-            setDisableUpdateButton(false);
-        }
-    }, [product, currentProduct]);
 
     const getAllProducts = async (search, page, pageSize) => {
         const res = await ProductServices.getAllProducts(search, page, pageSize);
@@ -321,8 +306,15 @@ const ListProducts = () => {
         }
     }
 
-    const handleCreateNew = async () => {
-        setIsCreating(true);
+    const handleCreateProduct = async () => {
+        setIsLoading(true);
+        const currentProduct = form.getFieldsValue();
+        Object.keys(currentProduct).forEach(k => {
+            try {
+                currentProduct[k] = currentProduct[k].trim()
+            }
+            catch (ignored) { }
+        });
         if (fileList.length) {
             const formData = new FormData();
             fileList.forEach((file) => {
@@ -333,48 +325,54 @@ const ListProducts = () => {
             const uploadedImages = await ProductServices.uploadFiles(formData);
             if (uploadedImages.status === 200) {
                 if (uploadedImages.data.results && uploadedImages.data.results.length) {
-                    product.imageURLs = uploadedImages.data.results;
+                    currentProduct.imageURLs = uploadedImages.data.results;
                     message.success(`Uploaded ${uploadedImages.data.results.length} Images`);
-                }
-                message.info("Creating product...");
-                const res = await ProductServices.createProduct(product);
-                if (res.status === 200) {
-                    if (res.data.isSuccess) {
-                        await getAllProducts();
-                        message.success("Created!!!");
-                        setCreateOpen(false);
-                        setDisableCreateButton(true);
-                        setProduct(defaultProduct);
-                        setFileList([]);
-                        setFormValidations(defaultValidations);
-                    } else {
-                        message.error(res.data.message);
-                    }
-
                 } else {
-                    message.error("Cannot create product with unknown errors!!!");
+                    message.error(uploadedImages.data.message);
                 }
-
             } else {
                 message.error(`Cannot upload ${fileList.length} Images`);
             }
         }
-        setIsCreating(false);
+        const res = await ProductServices.createProduct(currentProduct);
+        if (res.status === 200) {
+            if (res.data.isSuccess) {
+                await getAllProducts();
+                message.success("Created!!!");
+                setOpenModal(false);
+                setDisableOkButton(true);
+                setFileList([]);
+                setFormValidations(defaultValidations);
+                form.resetFields();
+            } else {
+                message.error(res.data.message);
+            }
+        } else {
+            message.error("Cannot create product with unknown errors!!!");
+        }
+        setIsLoading(false);
     }
 
     const handleUpdateProduct = async () => {
-        setIsUpdating(true);
+        setIsLoading(true);
+        const currentProduct = form.getFieldsValue();
+        Object.keys(currentProduct).forEach(k => {
+            try {
+                currentProduct[k] = currentProduct[k].trim()
+            }
+            catch (ignored) { }
+        });
         const newImageURLs = [];
-        for (let index = 0; index < updateFileList.length; index++) {
-            const image = updateFileList[index];
-            if(image.uploadedImage) {
+        for (let index = 0; index < fileList.length; index++) {
+            const image = fileList[index];
+            if (image.uploadedImage) {
                 newImageURLs.push(image.uploadedImage);
             } else {
                 const formData = new FormData();
                 formData.append('file', image.originFileObj);
                 message.info(`Uploading Image: ${image.originFileObj.name}`);
                 const res = await ProductServices.uploadFile(formData);
-                if(res.status === 200) {
+                if (res.status === 200) {
                     message.success(`Uploaded Image: ${image.originFileObj.name}`);
                     newImageURLs.push(res.data.result);
                 } else {
@@ -393,11 +391,11 @@ const ListProducts = () => {
             if (res.data.isSuccess) {
                 await getAllProducts();
                 message.success("Updated!!!");
-                setUpdateOpen(false);
-                setDisableUpdateButton(true);
-                setCurrentProduct(defaultProduct);
-                setUpdateFileList([]);
+                setOpenModal(false);
+                setDisableOkButton(true);
+                setFileList([]);
                 setFormValidations(defaultValidations);
+                form.resetFields();
             } else {
                 message.error(res.data.message);
             }
@@ -405,11 +403,13 @@ const ListProducts = () => {
         } else {
             message.error("Cannot update product with unknown errors!!!");
         }
-        setIsUpdating(false);
+        setIsLoading(false);
 
     }
 
     const handleClickUpdate = (record) => {
+        setIsCreating(false);
+        setDisableOkButton(false);
         record.imageURLs.sort((a, b) => {
             if (a.isMainImage < b.isMainImage) {
                 return 1;
@@ -419,8 +419,7 @@ const ListProducts = () => {
             }
             return 0;
         })
-        setCurrentProduct(record);
-        updateForm.setFieldsValue(record);
+        form.setFieldsValue(record);
         const images = record.imageURLs.map((img, index) => {
             return {
                 uid: `${index + 1}`,
@@ -435,8 +434,8 @@ const ListProducts = () => {
                 }
             }
         });
-        setUpdateFileList(images);
-        setUpdateOpen(true);
+        setFileList(images);
+        setOpenModal(true);
     }
 
     const handleDelete = async (id) => {
@@ -489,7 +488,6 @@ const ListProducts = () => {
     };
 
     const handleImagesChange = ({ fileList: newFileList }) => setFileList(newFileList);
-    const handleUpdateImagesChange = ({ fileList: newFileList }) => setUpdateFileList(newFileList);
 
     const getBase64 = (file) =>
         new Promise((resolve, reject) => {
@@ -499,23 +497,15 @@ const ListProducts = () => {
             reader.onerror = (error) => reject(error);
         });
 
-    const handleInputCreateChange = (event, name) => {
-        let value = event.target.value;
+    const handleInputChange = (value, name) => {
         value = value.trim();
         if (fieldValidate(name, value)) {
-            setProduct({ ...product, [name]: value });
+            const currentData = form.getFieldsValue();
+            if (currentData.productName && currentData.price && currentData.quantity && currentData.categoryId) {
+                setDisableOkButton(false);
+            }
         } else {
-            setDisableCreateButton(true);
-        }
-    }
-
-    const handleInputUpdateChange = (event, name) => {
-        let value = event.target.value;
-        value = value.trim();
-        if (fieldValidate(name, value)) {
-            setCurrentProduct({ ...currentProduct, [name]: value });
-        } else {
-            setDisableUpdateButton(true);
+            setDisableOkButton(true);
         }
     }
 
@@ -549,7 +539,15 @@ const ListProducts = () => {
 
     return (
         <MainLayout>
-            <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
+            <Button
+                type="primary"
+                icon={<FileAddOutlined />}
+                style={{ marginBottom: "20px" }}
+                onClick={() => {
+                    setIsCreating(true);
+                    setOpenModal(true)
+                }}
+            >
                 Create a new product
             </Button>
             <Table
@@ -576,32 +574,33 @@ const ListProducts = () => {
             />
 
             <Modal
-                title="Create a new product"
+                title={isCreating ? "Create a new product" : "Update chosen product"}
                 centered
-                okText="Create"
-                open={createOpen}
-                onOk={async () => {
-                    await handleCreateNew();
-                    createForm.resetFields();
+                okText={isCreating ? "Create" : "Update"}
+                open={openModal}
+                onOk={() => {
+                    isCreating ?
+                        handleCreateProduct() :
+                        handleUpdateProduct();
                 }}
                 onCancel={() => {
-                    setCreateOpen(false);
-                    createForm.resetFields();
-                    setDisableCreateButton(true);
+                    setOpenModal(false);
+                    form.resetFields();
+                    setDisableOkButton(true);
                     setFormValidations(defaultValidations);
                     setFileList([]);
                 }}
                 width={800}
-                okButtonProps={{ disabled: createButton }}
+                okButtonProps={{ disabled: okButton }}
                 estroyOnClose={true}
-                confirmLoading={isCreating}
+                confirmLoading={isLoading}
             >
                 <Row gutter={8}>
                     <Col className="gutter-row" span={3} style={{ textAlign: "right" }}>
                         Images:
                     </Col>
                     <Col className="gutter-row" span={21}>
-                        <DndContext sensors={[sensor]} onDragEnd={onDragEnd}>
+                        <DndContext sensors={[sensor]} onDragEnd={onImageDragEnd}>
                             <SortableContext items={fileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
                                 <Upload
                                     itemRender={(node, file, fileList) => {
@@ -657,38 +656,56 @@ const ListProducts = () => {
                     </Col>
                 </Row>
                 <Form
-                    form={createForm}
+                    form={form}
                     {...{
                         labelCol: { span: 3 }
                     }}
-                    name="create-new-product-modal"
-                    onErrorCapture={(e) => setDisableCreateButton(true)}
+                    name="detail-product-modal"
+                    onErrorCapture={(e) => setDisableOkButton(true)}
                     style={{ maxWidth: 1000 }}
                 >
                     <Form.Item
+                        name={['id']}
+                        label="Id"
+                        hidden
+                    >
+                        <Input />
+                    </Form.Item>
+                    <Form.Item
                         name={['productName']}
                         label="Name"
-                        rules={[{ required: true }]}
+                        required
                         hasFeedback
                         validateStatus={formValidations.productName.errorType}
                         help={formValidations.productName.help}
                     >
-                        <Input placeholder="Product name is required! don't forget to type it!" onChange={(event) => handleInputCreateChange(event, "productName")} />
+                        <Input placeholder="Product name is required! don't forget to type it!" onChange={(event) => handleInputChange(event.target.value, "productName")} />
                     </Form.Item>
                     <Form.Item
                         name={['price']}
                         label="Price"
-                        rules={[{ type: 'number', min: 0, max: 9999999999 }]}
+                        required
                         hasFeedback
                         validateStatus={formValidations.price.errorType}
                         help={formValidations.price.help}
                     >
-                        <Input style={{ width: "100%" }} placeholder="Price must be a number and must be in range from 0 -> 9999999999" onChange={(event) => handleInputCreateChange(event, "price")} />
+                        <Input style={{ width: "100%" }} placeholder="Price must be a number and must be in range from 0 -> 9999999999" onChange={(event) => handleInputChange(event.target.value, "price")} />
+                    </Form.Item>
+                    <Form.Item
+                        name={['quantity']}
+                        label="Quantity"
+                        hasFeedback
+                        required
+                        validateStatus={formValidations.quantity.errorType}
+                        help={formValidations.quantity.help}
+                    >
+                        <Input style={{ width: "100%" }} placeholder="Quantity must be a number and must be in range from 0 -> 9999" onChange={(event) => handleInputChange(event.target.value, "quantity")} />
                     </Form.Item>
                     <Form.Item
                         name={['categoryId']}
                         label="Category"
                         hasFeedback
+                        required
                         validateStatus={formValidations.category.errorType}
                         help={formValidations.category.help}
                     >
@@ -700,11 +717,7 @@ const ListProducts = () => {
                             filterSort={(optionA, optionB) =>
                                 (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
                             }
-                            onChange={(value) => {
-                                if (fieldValidate("categoryId", value)) {
-                                    setProduct({ ...product, categoryId: value })
-                                }
-                            }}>
+                            onChange={(value) => handleInputChange(value, "categoryId")}>
                             {categories.map(cate => (
                                 <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
                             ))}
@@ -717,170 +730,7 @@ const ListProducts = () => {
                         validateStatus={formValidations.description.errorType}
                         help={formValidations.description.help}
                     >
-                        <Input.TextArea placeholder="Description must not contain special characters" onChange={(event) => handleInputCreateChange(event, "description")} rows={8} />
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-            <Modal
-                title="Create a new product"
-                centered
-                open={updateOpen}
-                onOk={() => {
-                    handleUpdateProduct();
-                }}
-                onCancel={() => {
-                    setUpdateOpen(false);
-                    setFormValidations(defaultValidations);
-                    setCurrentProduct(defaultProduct);
-                }}
-                width={800}
-                okText="Update"
-                okButtonProps={{ disabled: updateButton, danger: true }}
-                estroyOnClose={true}
-                confirmLoading={isUpdating}
-            >
-                <Row gutter={8}>
-                    <Col className="gutter-row" span={3} style={{ textAlign: "right" }}>
-                        Images:
-                    </Col>
-                    <Col className="gutter-row" span={21}>
-                        <DndContext sensors={[sensor]} onDragEnd={onDragEndWhenUpdateProduct}>
-                            <SortableContext items={updateFileList.map((i) => i.uid)} strategy={verticalListSortingStrategy}>
-                                <Upload
-                                    listType="picture-card"
-                                    fileList={updateFileList}
-                                    itemRender={(node, file, fileList) => {
-                                        // const mainImage = fileList.find(fl => fl.uploadedImage && fl.uploadedImage.isMainImage === true);
-                                        // if (mainImage) {
-                                        //     if (file === mainImage) {
-                                        //         return <div className="is-main-image">
-                                        //             <CheckOutlined />
-                                        //             <DraggableUploadListItem originNode={node} file={file} />
-                                        //         </div>
-                                        //     } else {
-                                        //         return <DraggableUploadListItem originNode={node} file={file} />;
-                                        //     }
-
-                                        // } else if (file === fileList[0]) {
-                                        //     return <div className="is-main-image">
-                                        //         <CheckOutlined />
-                                        //         <DraggableUploadListItem originNode={node} file={file} />
-                                        //     </div>
-                                        // } else {
-                                        //     return <DraggableUploadListItem originNode={node} file={file} />;
-                                        // }
-                                        return file === fileList[0]
-                                            ? <div className="is-main-image">
-                                                <CheckOutlined />
-                                                <DraggableUploadListItem originNode={node} file={file} />
-                                            </div>
-                                            : <DraggableUploadListItem originNode={node} file={file} />;
-                                    }}
-                                    onPreview={handleImagePreview}
-                                    onChange={handleUpdateImagesChange}
-                                    multiple
-                                    maxCount={5}
-                                    beforeUpload={(file) => {
-                                        setUpdateFileList(fileList => [...fileList, file]);
-                                        return false;
-                                    }
-                                    }
-                                    onRemove={(file) => {
-                                        const index = updateFileList.indexOf(file);
-                                        const newFileList = updateFileList.slice();
-                                        newFileList.splice(index, 1);
-                                        setUpdateFileList(newFileList);
-                                    }
-                                    }
-                                >
-                                    {updateFileList.length >= 5 ? null :
-                                        <div>
-                                            <PlusOutlined />
-                                            <div
-                                                style={{
-                                                    marginTop: 8,
-                                                }}
-                                            >
-                                                Upload(max: 5 images)
-                                            </div>
-                                        </div>}
-                                </Upload>
-                            </SortableContext>
-                        </DndContext>
-                        <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
-                            <img
-                                alt="example"
-                                style={{
-                                    width: '100%',
-                                }}
-                                src={previewImage}
-                            />
-                        </Modal>
-                    </Col>
-                </Row>
-                <Form
-                    labelCol={{
-                        span: 3,
-                    }}
-                    wrapperCol={{
-                        span: 21,
-                    }}
-                    form={updateForm}
-                    layout="horizontal"
-
-                >
-                    <Form.Item
-                        label="Product name"
-                        name={['productName']}
-                        hasFeedback
-                        validateStatus={formValidations.productName.errorType}
-                        help={formValidations.productName.help}
-                    >
-                        <Input onChange={(event) => handleInputUpdateChange(event, "productName")} />
-                    </Form.Item>
-                    <Form.Item
-                        label="Category"
-                        name={['categoryId']}
-                        hasFeedback
-                        validateStatus={formValidations.category.errorType}
-                        help={formValidations.category.help}
-                    >
-                        <Select
-                            showSearch
-                            optionFilterProp="children"
-                            filterOption={(input, option) => (option?.children.toLowerCase() ?? '').includes(input.toLowerCase())}
-                            filterSort={(optionA, optionB) =>
-                                (optionA?.children ?? '').toLowerCase().localeCompare((optionB?.children ?? '').toLowerCase())
-                            }
-                            onChange={(value) => {
-                                if (fieldValidate("categoryId", value)) {
-                                    setCurrentProduct({ ...currentProduct, categoryId: value })
-                                }
-                            }}
-                        >
-                            {categories.map(cate => (
-                                <Option key={cate.id} value={cate.id}>{cate.categoryName}</Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                    <Form.Item
-                        label="Price"
-                        name={['price']}
-                        hasFeedback
-                        validateStatus={formValidations.price.errorType}
-                        help={formValidations.price.help}
-                    >
-                        <Input onChange={(event) => handleInputUpdateChange(event, "price")} />
-                    </Form.Item>
-                    <Form.Item
-                        label="Description"
-                        name={['description']}
-                        hasFeedback
-                        validateStatus={formValidations.description.errorType}
-                        help={formValidations.description.help}
-                    >
-                        <Input.TextArea rows={8} onChange={(event) => handleInputUpdateChange(event, "description")} />
+                        <Input.TextArea placeholder="Description must not contain special characters" onChange={(event) => handleInputChange(event.target.value, "description")} rows={8} />
                     </Form.Item>
                 </Form>
             </Modal>

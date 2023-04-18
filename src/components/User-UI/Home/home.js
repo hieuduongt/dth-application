@@ -11,8 +11,11 @@ const { Meta } = Card;
 
 const Home = () => {
     const location = useLocation();
-    const [products, setProducts] = useState();
+    const [products, setProducts] = useState([]);
     const [inCartItems, setInCartItems] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(24);
+    const [totalRecords, setTotalRecords] = useState(1);
 
     const getAllProducts = async (search, page, pageSize) => {
         const categories = await CategoryServices.getAllCategories();
@@ -24,12 +27,18 @@ const Home = () => {
         if (categoryId) {
             const res = await ProductServices.getAllProductsByCategory(categoryId, search, page, pageSize);
             if (res.status === 200) {
-                setProducts(res.data.result);
+                setCurrentPage(res.data.result.currentPage);
+                setPageSize(res.data.result.pageSize);
+                setTotalRecords(res.data.result.totalRecords);
+                onCheckItemIsAddedToCart(res.data.result.results);
             }
         } else {
             const res = await ProductServices.getAllProducts(search, page, pageSize);
             if (res.status === 200) {
-                setProducts(res.data.result);
+                setCurrentPage(res.data.result.currentPage);
+                setPageSize(res.data.result.pageSize);
+                setTotalRecords(res.data.result.totalRecords);
+                onCheckItemIsAddedToCart(res.data.result.results);
             }
         }
     }
@@ -37,7 +46,7 @@ const Home = () => {
     useEffect(() => {
         getAllProducts();
         const itemsInCart = localStorage.getItem("inCartItems");
-        if(itemsInCart) {
+        if (itemsInCart) {
             const jsonParsed = JSON.parse(itemsInCart);
             setInCartItems(jsonParsed.length);
         }
@@ -53,42 +62,54 @@ const Home = () => {
 
     const onAddToCart = (item) => {
         const itemsInCart = localStorage.getItem("inCartItems");
-        if(itemsInCart && itemsInCart.length) {
-            try {
-                const jsonParsed = JSON.parse(itemsInCart);
-                jsonParsed.push(item.id);
-                localStorage.setItem("inCartItems", JSON.stringify(jsonParsed));
-            } catch (ignored) {
-                localStorage.removeItem("inCartItems");
-                localStorage.setItem("inCartItems", JSON.stringify([item.id]));
-            }
-            
+        const jsonParsed = JSON.parse(itemsInCart);
+        if (jsonParsed) {
+            jsonParsed.push(item.id);
+            localStorage.setItem("inCartItems", JSON.stringify(jsonParsed));
+            setInCartItems(jsonParsed.length);
         } else {
-            localStorage.setItem("inCartItems", JSON.stringify([item.id]));
+            localStorage.removeItem("inCartItems");
+            localStorage.setItem("inCartItems", JSON.stringify([item.id]));;
+            setInCartItems(1);
         }
-        setInCartItems(inCartItems+1);
+        setProducts((prevProducts) => {
+            const newProducts = [...prevProducts];
+            newProducts.forEach(prod => {
+                if (prod.id === item.id) {
+                    prod.isAddedToCart = true;
+                }
+            });
+            return newProducts;
+        });
     }
 
-    const onCheckItemInCart = (item) => {
+    const onCheckItemIsAddedToCart = (products) => {
         const itemsInCart = localStorage.getItem("inCartItems");
-        if(itemsInCart) {
-            try {
-                const jsonParsed = JSON.parse(itemsInCart);
-                const itm = jsonParsed.find(i => i === item.id);
-                return itm ? true : false;
-            } catch (ignored) {
-                return false;
-            }
+        const listIds = JSON.parse(itemsInCart);
+        const newProducts = [...products];
+        if (listIds && listIds.length) {
+            setInCartItems(listIds.length);
+            newProducts.forEach(prod => {
+                const id = listIds.find(i => i === prod.id);
+                if (id) {
+                    prod.isAddedToCart = true;
+                } else {
+                    prod.isAddedToCart = false;
+                }
+            });
+            setProducts(newProducts);
         } else {
-            return false
+            setInCartItems(0);
+            newProducts.forEach(prod => prod.isAddedToCart = false);
+            setProducts(newProducts);
         }
     }
 
     return (
-        <UserLayout inCartItems={inCartItems}>
-            <div style={{ width: "100%", height: "100%", padding:"16px"}}>
+        <UserLayout inCartItems={inCartItems} onRemoveItemInCart={() => onCheckItemIsAddedToCart(products)}>
+            <div style={{ width: "100%", height: "100%", padding: "16px" }}>
                 <Row wrap gutter={[{ xs: 8, sm: 16, md: 24, lg: 32 }, { xs: 8, sm: 16, md: 24, lg: 32 }]}>
-                    {products?.results.map(product => (
+                    {products.map(product => (
                         <Col
                             key={product.id}
                             className="gutter-row"
@@ -130,8 +151,8 @@ const Home = () => {
                                 }
                                 bordered={false}
                                 actions={[
-                                    <Button danger type="link"  icon={<CheckCircleOutlined />}>Buy</Button>,
-                                    <Button type="link" onClick={() => onAddToCart(product)} disabled={onCheckItemInCart(product)} icon={<ShoppingCartOutlined />}>{onCheckItemInCart(product) ? "Added to cart" : "Add to cart"}</Button>
+                                    <Button danger type="link" icon={<CheckCircleOutlined />}>Buy</Button>,
+                                    <Button type="link" onClick={() => onAddToCart(product)} disabled={product.isAddedToCart ? true : false} icon={<ShoppingCartOutlined />}>{product.isAddedToCart ? "Added to cart" : "Add to cart"}</Button>
                                 ]}
                                 style={{
                                     height: "540px"
@@ -154,9 +175,9 @@ const Home = () => {
                 <div style={{
                     textAlign: "right"
                 }}>
-                    <Pagination showQuickJumper current={products?.currentPage} total={products?.totalRecords} onChange={onChange} pageSize={products? products.pageSize : 24} pageSizeOptions={["6", "12", "24", "48", "96"]} defaultPageSize={"24"}/>
+                    <Pagination showQuickJumper current={currentPage} total={totalRecords} onChange={onChange} pageSize={pageSize} pageSizeOptions={["6", "12", "24", "48", "96"]} defaultPageSize={"24"} />
                 </div>
-                
+
             </div>
         </UserLayout>
     );

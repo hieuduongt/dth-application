@@ -17,10 +17,40 @@
 }
 
 .cart {
-    position: absolute;
-    top: 6px;
-    right: 0;
-    width: 60px;
-    padding-right: 10px;
-    height: fit-content;
+    margin-left: 20px;
+    margin-right: 20px;
+    height: 100%;
+    display: flex;
+    text-align: center;
+    align-items: center;
+}
+
+.header {
+    height: 100%;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+}
+
+.logo {
+    width: 200px; 
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.language{
+    margin-right: 20px;
+    height: 100%;
+    display: flex;
+    text-align: center;
+    align-items: center;
+}
+
+.search-bar {
+    display: flex;
+    text-align: center;
+    align-items: center;
+    height: 100%;
+    min-width: 500px;
+    max-width: 850px;
+    width: 850px;
 }

@@ -16,7 +16,6 @@ const ListCategory = () => {
     const [listCategories, setListCategories] = useState([]);
     const [loadings, setLoadings] = useState([]);
     const [category, setCategory] = useState();
-    const [updateCategory, setUpdateCategory] = useState();
     const [createOpen, setCreateOpen] = useState(false);
     const [updateOpen, setUpdateOpen] = useState(false);
     const [createValid, setCreateValid] = useState(false);

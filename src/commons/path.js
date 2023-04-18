@@ -13,6 +13,7 @@ const PATH = {
         PRODUCT_DETAIL: "/product/:id",
         LIST_CATEGORIES: "/list-categories",
     },
+    CART: "/buy/cart",
     BASEURL: "https://localhost:7023/api",
     IMAGEBASEURL: "https://localhost:7023"
     

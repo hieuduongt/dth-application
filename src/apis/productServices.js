@@ -50,11 +50,11 @@ const ProductServices = {
         return ApiCreator.get(url);
     },
     uploadFile: (data) => {
-        const url = `${PATH.BASEURL}/file/upload`
+        const url = `${PATH.BASEURL}/image/upload`
         return FileUploader.post(url, data);
     },
     uploadFiles: (data) => {
-        const url = `${PATH.BASEURL}/file/upload-multiple`
+        const url = `${PATH.BASEURL}/image/upload-multiple`
         return FileUploader.post(url, data);
     }
 };
