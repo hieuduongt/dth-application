@@ -74,14 +74,22 @@ const AdminLayout = (props) => {
                 minHeight: '100vh',
             }}
         >
-            <Sider collapsible theme={defaultTheme} collapsed={collapsed} defaultCollapsed={true} onCollapse={(value) => setCollapsed(value)} breakpoint="sm">
+            <Sider width={250} collapsible theme={defaultTheme} collapsed={collapsed} defaultCollapsed={true} onCollapse={(value) => setCollapsed(value)} breakpoint="sm">
                 <div
                     style={{
-                        height: 32,
-                        margin: 16,
-                        background: 'rgba(255, 255, 255, 0.2)',
+                        height: 64,
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        fontWeight: "bolder",
+                        fontSize: "1.1rem",
+                        textAlign: 'center',
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        paddingLeft: 15
                     }}
-                />
+                >
+                    DTH Application
+                </div>
                 <Menu onOpenChange={(keys) => setOpenSubMenu(keys)} theme={defaultTheme} openKeys={openSubMenu} selectedKeys={[currentItem]} mode="inline" items={items} datatype={NavLink} />
             </Sider>
             <Layout className="site-layout">

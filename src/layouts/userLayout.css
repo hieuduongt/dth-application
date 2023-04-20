@@ -33,8 +33,22 @@
 }
 
 .logo {
-    width: 200px; 
-    background: rgba(255, 255, 255, 0.3);
+    width: 200px;
+    margin-right: 20px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo > a {
+    width: 150px;
+    height: 100%;
+}
+
+.logo img {
+    width: 150px;
+    border-radius: 4px;
 }
 
 .language{

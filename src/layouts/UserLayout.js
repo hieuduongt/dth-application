@@ -1,4 +1,4 @@
-import { Breadcrumb, Layout, theme, Button, Badge, Popover, Avatar, List, Input, Select } from 'antd';
+import { Layout, theme, Button, Badge, Popover, Avatar, List, Input, Select } from 'antd';
 import { ShoppingCartOutlined, DeleteOutlined, SearchOutlined, DownOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -85,7 +85,9 @@ const UserLayout = (props) => {
             }}>
                 <div className="header">
                     <div className="logo" >
-                        CLM
+                        <a href='/'>
+                            <img src="logo.png" alt="DTH Logo" />
+                        </a>
                     </div>
                     <div className='search-bar'>
                         <Search
@@ -186,15 +188,6 @@ const UserLayout = (props) => {
                     padding: '50px 50px'
                 }}
             >
-                {/* <Breadcrumb
-                    style={{
-                        margin: '16px 0',
-                    }}
-                >
-                    <Breadcrumb.Item>Home</Breadcrumb.Item>
-                    <Breadcrumb.Item>{currentCategory ? currentCategory.categoryName : "All Products"}</Breadcrumb.Item>
-                    {currentCategory ? <Breadcrumb.Item>All Products</Breadcrumb.Item> : <></>}
-                </Breadcrumb> */}
                 <div
                     className="site-layout-content"
                     style={{
