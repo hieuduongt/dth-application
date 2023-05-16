@@ -4,7 +4,7 @@ import { Col, Row, Pagination, Card, Button } from 'antd';
 import { useLocation } from 'react-router-dom';
 import ProductServices from '../../../apis/productServices';
 import { CheckCircleOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import PATH from '../../../commons/path';
+import PATH from '../../../commons/paths';
 import './home.css'
 import CategoryServices from '../../../apis/categoryServices';
 const { Meta } = Card;

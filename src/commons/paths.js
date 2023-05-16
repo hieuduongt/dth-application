@@ -1,13 +1,14 @@
-const PATH = {
+const PATHS = {
     ADMIN: {
-        HOME: "/admin",
-        LIST_PRODUCTS: "/admin/list-products",
-        PRODUCT_DETAIL: "/admin/product/:id",
-        LIST_CATEGORIES: "/admin/list-categories",
-        CATEGORY: "/admin/category/:id",
+        PATH: "/admin/*",
+        DASHBOARD: "dashboard",
+        LIST_PRODUCTS: "list-products",
+        PRODUCT_DETAIL: "product/:id",
+        LIST_CATEGORIES: "list-categories",
+        CATEGORY_DETAIL: "category/:id",
     },
     USER: {
-        HOME: "/",
+        PATH: "/",
         LIST_PRODUCTS: "category/:id",
         PRODUCT_DETAIL: "/product/:id",
         LIST_CATEGORIES: "/list-categories",
@@ -19,4 +20,4 @@ const PATH = {
     REGISTER: "/register"
 };
 
-export default PATH;
+export default PATHS;

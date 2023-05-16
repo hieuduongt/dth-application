@@ -21,7 +21,7 @@ const Category = () => {
 
     const onFinish = async (values) => {
         const res = await CategoryServices.updateCategory(values);
-        if(res) {
+        if (res) {
             console.log(res);
         }
     };
@@ -31,78 +31,72 @@ const Category = () => {
     };
 
     return (
-        <AdminLayout>
-            {
-                category ? 
-                <Form
-                name="basic"
-                labelCol={{
-                    span: 8,
-                }}
+
+        <Form
+            name="basic"
+            labelCol={{
+                span: 8,
+            }}
+            wrapperCol={{
+                span: 16,
+            }}
+            style={{
+                maxWidth: 600,
+            }}
+            initialValues={{
+                remember: true,
+            }}
+            onFinish={onFinish}
+            onFinishFailed={onFinishFailed}
+            autoComplete="off"
+        >
+            <Form.Item
+                name="id"
+                hidden={true}
+                initialValue={category ? category.id : ""}
+            >
+                <Input />
+            </Form.Item>
+
+            <Form.Item
+                label="Category Name"
+                name="categoryName"
+                rules={[
+                    {
+                        required: true,
+                        message: 'Please input your category name!',
+                    },
+                ]}
+                initialValue={category ? category.categoryName : ""}
+            >
+                <Input />
+            </Form.Item>
+
+            <Form.Item
+                label="Category Url"
+                name="url"
+                rules={[
+                    {
+                        required: true,
+                        message: 'Please input your category Url!',
+                    },
+                ]}
+                initialValue={category ? category.url : ""}
+            >
+                <Input />
+            </Form.Item>
+
+            <Form.Item
                 wrapperCol={{
+                    offset: 8,
                     span: 16,
                 }}
-                style={{
-                    maxWidth: 600,
-                }}
-                initialValues={{
-                    remember: true,
-                }}
-                onFinish={onFinish}
-                onFinishFailed={onFinishFailed}
-                autoComplete="off"
             >
-                <Form.Item
-                    name="id"
-                    hidden={true}
-                    initialValue={category ? category.id : ""}
-                >
-                    <Input/>
-                </Form.Item>
-
-                <Form.Item
-                    label="Category Name"
-                    name="categoryName"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Please input your category name!',
-                        },
-                    ]}
-                    initialValue={category ? category.categoryName : ""}
-                >
-                    <Input/>
-                </Form.Item>
-
-                <Form.Item
-                    label="Category Url"
-                    name="url"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Please input your category Url!',
-                        },
-                    ]}
-                    initialValue = {category ? category.url : ""}
-                >
-                    <Input />
-                </Form.Item>
-
-                <Form.Item
-                    wrapperCol={{
-                        offset: 8,
-                        span: 16,
-                    }}
-                >
-                    <Button type="primary" htmlType="submit">
-                        Submit
-                    </Button>
-                </Form.Item>
-            </Form>:
-            <></>
-            }
-            
-        </AdminLayout>
+                <Button type="primary" htmlType="submit">
+                    Submit
+                </Button>
+            </Form.Item>
+        </Form>
     );
 }
 

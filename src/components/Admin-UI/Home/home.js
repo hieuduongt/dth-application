@@ -1,11 +1,9 @@
-import {React} from 'react';
+import { React } from 'react';
 import AdminLayout from '../../../layouts/AdminLayout';
 
 const Home = () => {
     return (
-        <AdminLayout>
-            <div>Hello world</div>
-        </AdminLayout>
+        <div>Hello world</div>
     );
 }
 

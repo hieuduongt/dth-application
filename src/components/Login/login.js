@@ -1,12 +1,35 @@
 import "./login.css";
-import React from "react";
+import React, { useEffect } from "react";
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Checkbox, Form, Input, Col, Row, Avatar } from 'antd';
+import AuthServices from '../../apis/authServices';
+import { setToken } from "../../helpers/useToken";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Login = () => {
-    const onFinish = (values) => {
-        console.log('Received values of form: ', values);
+    const [form] = Form.useForm();
+    const location = useLocation();
+    const navigate = useNavigate();
+
+
+    // useEffect(() => {
+    //     const exprired = 
+    // }, []);
+
+    const onFinish = async (values) => {
+        const result = await AuthServices.login(values);
+        if(result.status === 200) {
+            if(result.data.code === 200) {
+                setToken(result.data.result);
+                const searchParams = location.search;
+                const redirectUri = new URLSearchParams(searchParams).get("redirectUri");
+                navigate(redirectUri ? `${redirectUri}` : "/");
+            } else {
+
+            }
+        }
     };
+
     return (
         <Row justify={"center"} wrap={true} style={{
             height: "100vh"
@@ -74,6 +97,7 @@ const Login = () => {
                 }}>
                 <div className="login-form">
                     <Form
+                        form={form}
                         style={{
                             width: 400
                         }}

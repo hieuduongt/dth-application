@@ -27,7 +27,7 @@ import {
 } from '@ant-design/icons';
 import ProductServices from '../../../apis/productServices';
 import CategoryServices from '../../../apis/categoryServices';
-import PATH from "../../../commons/path";
+import PATH from "../../../commons/paths";
 import { DndContext, PointerSensor, useSensor } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -538,7 +538,7 @@ const ListProducts = () => {
     }
 
     return (
-        <MainLayout>
+        <div>
             <Button
                 type="primary"
                 icon={<FileAddOutlined />}
@@ -734,7 +734,7 @@ const ListProducts = () => {
                     </Form.Item>
                 </Form>
             </Modal>
-        </MainLayout>
+        </div>
     );
 }
 

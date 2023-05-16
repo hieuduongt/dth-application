@@ -1,5 +1,5 @@
 import ApiCreator from "./apiCreator";
-import PATH from "../commons/path";
+import PATH from "../commons/paths";
 
 const CategoryServices = {
     getAllCategories: () => {

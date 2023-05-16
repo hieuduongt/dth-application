@@ -131,7 +131,7 @@ const ListCategory = () => {
     }
 
     return (
-        <MainLayout>
+        <div>
             <Button type="primary" icon={<FileAddOutlined />} style={{ marginBottom: "20px" }} onClick={() => setCreateOpen(true)}>
                 Create a new category
             </Button>
@@ -169,7 +169,7 @@ const ListCategory = () => {
                         />
                     ]}>
                         <List.Item.Meta
-                            title={<NavLink exact to={`/admin/category/${item.id}`}>{item.categoryName}</NavLink>}
+                            title={<NavLink to={`/admin/category/${item.id}`}>{item.categoryName}</NavLink>}
                             description={item.url}
                         />
                     </List.Item>
@@ -310,7 +310,7 @@ const ListCategory = () => {
                     </Form.Item>
                 </Form>
             </Modal>
-        </MainLayout>
+        </div>
     );
 }
 

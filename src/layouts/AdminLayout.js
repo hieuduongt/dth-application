@@ -1,8 +1,16 @@
 import { FileOutlined, DesktopOutlined, ContainerFilled, ProfileFilled } from '@ant-design/icons';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { Avatar, Layout, Menu, theme, Popover, Button } from 'antd';
 import { useEffect, useState } from 'react';
-import PATH from '../commons/path';
+import PATH from '../commons/paths';
+import { Routes, Route } from 'react-router-dom';
+import PATHS from '../commons/paths';
+import AdminCategoryListPage from '../components/Admin-UI/ListCategories/list-categories';
+import AdminCategoryDetailPage from '../components/Admin-UI/Category/category';
+import AdminProductListPage from '../components/Admin-UI/ListProducts/list-products';
+import AdminHomePage from '../components/Admin-UI/Home/home';
+import ProtectedRoute from '../routes/protectedRoute';
+import { getTokenProperties, removeToken } from '../helpers/useToken';
 const { Header, Content, Footer, Sider } = Layout;
 
 function getItem(label, key, icon, children) {
@@ -15,58 +23,35 @@ function getItem(label, key, icon, children) {
 }
 
 const items = [
-    getItem((<NavLink exact to={PATH.ADMIN.HOME}> Dashboard</NavLink>), 'home', <DesktopOutlined />),
+    getItem((<NavLink to={PATH.ADMIN.DASHBOARD}> Dashboard</NavLink>), 'home', <DesktopOutlined />),
     getItem("Category", 'catesub', <ContainerFilled />, [
-        getItem((<NavLink exact to={PATH.ADMIN.LIST_CATEGORIES}> List</NavLink>), 'list-categories'),
+        getItem((<NavLink to={PATH.ADMIN.LIST_CATEGORIES}> List</NavLink>), 'list-categories'),
     ]),
     getItem('Product', 'productSub', <ProfileFilled />, [
-        getItem((<NavLink exact to={PATH.ADMIN.LIST_PRODUCTS}> List</NavLink>), 'list-products'),
+        getItem((<NavLink to={PATH.ADMIN.LIST_PRODUCTS}> List</NavLink>), 'list-products'),
     ]),
     getItem('Files', '9', <FileOutlined />),
 ];
 
-const listItems = [
-    {
-        key: "home",
-        pathName: PATH.ADMIN.HOME
-    },
-    {
-        parent: "catesub",
-        key: "list-categories",
-        pathName: PATH.ADMIN.LIST_CATEGORIES
-    },
-    {
-        parent: "productSub",
-        key: "list-products",
-        pathName: PATH.ADMIN.LIST_PRODUCTS
-    }
-]
-
-const AdminLayout = (props) => {
-    const { children } = props;
+const AdminLayout = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
     const {
         token: { colorBgContainer },
     } = theme.useToken();
-    const [defaultTheme, setTheme] = useState("dark");
-    const [currentItem, setCurrentItem] = useState("");
+
     const [openSubMenu, setOpenSubMenu] = useState([]);
-    const location = useLocation();
+    const userProperties = getTokenProperties();
 
     useEffect(() => {
-        const currentTime = new Date().getHours();
-        if (currentTime <= 18 && currentTime >= 6) {
-            setTheme("light");
-        } else {
-            setTheme("dark");
-        }
-        const pathName = location.pathname;
-        const currentActivatedItem = listItems.find(i => i.pathName.includes(pathName));
-        if (currentActivatedItem) {
-            setCurrentItem(currentActivatedItem.key);
-            setOpenSubMenu((openSubMenu) => ([...openSubMenu, currentActivatedItem.parent]));
-        };
-    }, [location.pathname]);
+        console.log(userProperties);
+    }, []);
+
+    const Logout = () => {
+        removeToken("authToken");
+        navigate(`/login?redirectUri=${location.pathname}`);
+    }
 
     return (
         <Layout
@@ -74,7 +59,13 @@ const AdminLayout = (props) => {
                 minHeight: '100vh',
             }}
         >
-            <Sider width={250} collapsible theme={defaultTheme} collapsed={collapsed} defaultCollapsed={true} onCollapse={(value) => setCollapsed(value)} breakpoint="sm">
+            <Sider width={250}
+                collapsible
+                theme={"dark"}
+                collapsed={collapsed}
+                defaultCollapsed={true}
+                onCollapse={(value) => setCollapsed(value)}
+                breakpoint="sm">
                 <div
                     style={{
                         height: 64,
@@ -90,7 +81,12 @@ const AdminLayout = (props) => {
                 >
                     DTH Application
                 </div>
-                <Menu onOpenChange={(keys) => setOpenSubMenu(keys)} theme={defaultTheme} openKeys={openSubMenu} selectedKeys={[currentItem]} mode="inline" items={items} datatype={NavLink} />
+                <Menu onOpenChange={(keys) => setOpenSubMenu(keys)}
+                    theme={"dark"}
+                    openKeys={openSubMenu}
+                    mode="inline"
+                    items={items}
+                    datatype={NavLink} />
             </Sider>
             <Layout className="site-layout">
                 <Header
@@ -100,18 +96,19 @@ const AdminLayout = (props) => {
                         background: colorBgContainer,
                     }}
                 >
-                    <Popover placement="bottomRight" title={"Hieu Duong"} content={
+                    <Popover placement="bottomRight" title={userProperties.givenname} content={
                         <div>
-                            <p>
-                            Welcome to DTH Application
-                            </p>
-                            
-                            <Button>Log out</Button>
+                            <div>
+                                <a href=''>
+                                    Your profile
+                                </a>
+                            </div>
+                            <Button onClick={Logout}>Log out</Button>
                         </div>
                     } trigger="click" arrow={false}>
-                        <Avatar src="/title-icon.PNG" alt='Hieu Duong' style={{ border: "1px solid rgb(43 149 255)", cursor: "pointer"}} />
+                        <Avatar src="/title-icon.PNG" alt={userProperties.givenname} style={{ border: "1px solid rgb(43 149 255)", cursor: "pointer" }} />
                     </Popover>
-                    
+
                 </Header>
                 <Content
                     style={{
@@ -126,7 +123,13 @@ const AdminLayout = (props) => {
                             borderRadius: 5
                         }}
                     >
-                        {children}
+                        <Routes>
+                            <Route path="" element={<ProtectedRoute><AdminHomePage /></ProtectedRoute>} />
+                            <Route path={PATHS.ADMIN.DASHBOARD} element={<ProtectedRoute><AdminHomePage /></ProtectedRoute>} />
+                            <Route path={"list-products"} element={<ProtectedRoute><AdminProductListPage /></ProtectedRoute>} />
+                            <Route path={PATHS.ADMIN.LIST_CATEGORIES} element={<ProtectedRoute><AdminCategoryListPage /></ProtectedRoute>} />
+                            <Route path={PATHS.ADMIN.CATEGORY_DETAIL} element={<ProtectedRoute><AdminCategoryDetailPage /></ProtectedRoute>} />
+                        </Routes >
                     </div>
                 </Content>
                 <Footer

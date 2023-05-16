@@ -1,11 +1,12 @@
 import { Layout, theme, Button, Badge, Popover, Avatar, List, Input, Select } from 'antd';
 import { ShoppingCartOutlined, DeleteOutlined, SearchOutlined, DownOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import CategoryServices from '../apis/categoryServices';
 import './userLayout.css';
 import ProductServices from '../apis/productServices';
-import PATH from '../commons/path';
+import PATH from '../commons/paths';
+import { getTokenProperties, removeToken } from '../helpers/useToken';
 const { Header, Content, Footer } = Layout;
 const { Search } = Input;
 
@@ -19,6 +20,8 @@ const UserLayout = (props) => {
     const [categories, setCategories] = useState([]);
     const [itemsInCart, setItemsInCart] = useState([]);
     const location = useLocation();
+    const userProperties = getTokenProperties();
+    const navigate = useNavigate();
 
     const getAllCategories = async () => {
         const res = await CategoryServices.getAllCategories();
@@ -76,6 +79,11 @@ const UserLayout = (props) => {
 
             }
         }
+    }
+
+    const Logout = () => {
+        removeToken("authToken");
+        navigate("/");
     }
 
     return (
@@ -169,13 +177,18 @@ const UserLayout = (props) => {
                         </Popover>
                     </div>
                     <div className="user" >
-                        <Popover placement="bottomRight" title={"Hieu Duong"} content={
+                        <Popover placement="bottomRight" title={userProperties ? userProperties.givenname : ""} content={
                             <div>
-                                <p>
-                                    Welcome to DTH Application
-                                </p>
-
-                                <Button>Log out</Button>
+                                {userProperties ?
+                                    <div>
+                                        <a href=''>Your profile</a>
+                                    </div>
+                                    :
+                                    <></>
+                                }
+                                { !userProperties ?
+                                    <Button href={`/login?redirectUri=${location.pathname}`}>Log in</Button> : <Button onClick={Logout}>Log out</Button>
+                                }
                             </div>
                         } trigger="click" arrow={true}>
                             <Avatar size={"large"} src="/title-icon.PNG" alt='Hieu Duong' style={{ border: "1px solid rgb(43 149 255)", cursor: "pointer", }} />

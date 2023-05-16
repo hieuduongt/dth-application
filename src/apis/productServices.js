@@ -1,6 +1,6 @@
 import ApiCreator from "./apiCreator";
 import FileUploader from "./fileApiCreator";
-import PATH from "../commons/path";
+import PATH from "../commons/paths";
 
 const ProductServices = {
     getAllProducts: (search, page, pageSize) => {
