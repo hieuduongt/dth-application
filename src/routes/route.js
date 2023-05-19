@@ -24,7 +24,7 @@ const MainRoute = () => {
             <Route path={PATHS.LOGIN} exact element={<LoginPage />} />
             <Route path={PATHS.REGISTER} element={<RegisterPage />} />
             <Route path={PATHS.ADMIN.PATH} element={<ProtectedRoute roles={["Admin", "Seller", "Manager", "User"]}><AdminLayout /></ProtectedRoute>} />
-        </Routes >
+        </Routes>
     );
 }
 

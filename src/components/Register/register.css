@@ -1,0 +1,45 @@
+
+.register-main-content {
+    display: flex;
+    background-color: rgba(255, 255, 255, 0.76);
+    padding: 50px;
+    border-radius: 20px;
+    box-shadow: 0 0 10px 0 rgba(0,0,0,.2);
+}
+
+.register-background-content {
+    background: #36d1dc;
+    background: -webkit-linear-gradient(to right, #36d1dc, #5b86e5);
+    background: linear-gradient(to right, #36d1dc, #5b86e5);
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.register-form {
+}
+
+.register-background-content-text {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+}
+
+.register-background-content-text > div {
+    width: 200px;
+    text-align: center;
+    margin: auto;
+}
+
+.register-left-content {
+    text-align: center;
+    margin: auto;
+    width: 400px;
+}
+
+.register-logo-background {
+    width: 200px;
+    border-radius: 4px;
+}

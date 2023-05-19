@@ -1,31 +1,36 @@
 import "./login.css";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Button, Checkbox, Form, Input, Col, Row, Avatar } from 'antd';
+import { Button, Checkbox, Form, Input, Col, Row, Avatar, Alert } from 'antd';
 import AuthServices from '../../apis/authServices';
 import { setToken } from "../../helpers/useToken";
 import { useNavigate, useLocation } from "react-router-dom";
+import PATHS from "../../commons/paths";
 
 const Login = () => {
     const [form] = Form.useForm();
     const location = useLocation();
     const navigate = useNavigate();
+    const [errorMessage, setErrorMessage] = useState("");
 
-
-    // useEffect(() => {
-    //     const exprired = 
-    // }, []);
+    const getRedirectUri = () => {
+        const searchParams = location.search;
+        const redirectUri = new URLSearchParams(searchParams).get("redirectUri");
+        return redirectUri ? redirectUri : "";
+    }
 
     const onFinish = async (values) => {
         const result = await AuthServices.login(values);
-        if(result.status === 200) {
-            if(result.data.code === 200) {
-                setToken(result.data.result);
-                const searchParams = location.search;
-                const redirectUri = new URLSearchParams(searchParams).get("redirectUri");
-                navigate(redirectUri ? `${redirectUri}` : "/");
-            } else {
-
+        if (result.status === 200) {
+            switch (result.data.code) {
+                case 200: {
+                    setToken(result.data.result);
+                    const redirectUri = getRedirectUri();
+                    navigate(redirectUri ? `${redirectUri}` : "/");
+                }
+                case 401: {
+                    setErrorMessage(result.data.message);
+                }
             }
         }
     };
@@ -143,6 +148,12 @@ const Login = () => {
                                 placeholder="Password"
                             />
                         </Form.Item>
+                        {errorMessage ?
+                            <Form.Item>
+                                <Alert message={errorMessage} type="error" showIcon />
+                            </Form.Item>
+                            :
+                            <></>}
                         <Form.Item>
                             <div className="login-action">
                                 <div className="login-remember-me">
@@ -157,12 +168,11 @@ const Login = () => {
                                 </div>
                             </div>
                         </Form.Item>
-
                         <Form.Item>
                             <Button type="primary" htmlType="submit" className="login-form-button">
                                 Log in
                             </Button>
-                            Or <a href="">register now!</a>
+                            Or <a href={`${PATHS.REGISTER}?redirectUri=${getRedirectUri()}`}>register now!</a>
                         </Form.Item>
                     </Form>
                 </div>
